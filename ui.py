@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .config import APP_NAME, APP_TAGLINE, LOGIC_VERSION, TEMPLATE_VERSION
+from config import APP_NAME, APP_TAGLINE, LOGIC_VERSION, TEMPLATE_VERSION
 
 
 def inject_css():
@@ -35,6 +35,7 @@ def inject_css():
         .ep-hero p {
             color: #CBD5E1; margin: 4px 0 0 0; font-size: 13px;
         }
+
         /* ====== Case info bar ====== */
         .ep-casebar {
             display: flex; align-items: center; justify-content: space-between;
@@ -70,12 +71,10 @@ def inject_css():
         .ep-scorecard .state { color: #1E3A8A; font-weight: 600; font-size: 13px; }
         .ep-scorecard .hint  { color: #64748B; font-size: 11.5px; margin-top: 6px; }
 
-        /* ====== Section dividers / helpers ====== */
+        /* ====== Section helpers ====== */
         .ep-muted { color: #64748B; font-size: 12px; }
         .ep-section-title { color: #1E3A8A; font-size: 18px; font-weight: 700; margin: 18px 0 6px 0; }
-        .ep-divider {
-            border: 0; border-top: 1px solid #E2E8F0; margin: 14px 0;
-        }
+        .ep-divider { border: 0; border-top: 1px solid #E2E8F0; margin: 14px 0; }
 
         /* ====== Callout ====== */
         .ep-callout {
@@ -103,66 +102,6 @@ def footer():
         f'Diagnostic tool — not a ranking, compliance, or accreditation instrument.</p>',
         unsafe_allow_html=True,
     )
-
-
-def state_badge(state: str) -> str:
-    if state is None:
-        state = "—"
-    good = {"Resilient", "Stable", "Anabolic", "Strong Alignment",
-            "Approximate Alignment", "Thriving", "Healthy"}
-    warn = {"Vulnerable", "Transitional", "Undersupply", "Weak Alignment",
-            "Oversupply", "Stretched", "Attention Needed"}
-    bad = {"Priority Action", "Catabolic", "Mismatch", "Fragile", "Critical",
-           "Under Pressure", "In Decline", "Alignment Gap", "At Risk",
-           "Capacity Exceeds Visible Demand"}
-    if state in good:
-        cls = "b-good"
-    elif state in warn:
-        cls = "b-warn"
-    elif state in bad:
-        cls = "b-bad"
-    else:
-        cls = "b-neutral"
-    return f'<span class="ep-badge {cls}">{state}</span>'
-
-
-def mode_chip(mode: str) -> str:
-    cls = "c-internal" if mode == "internal" else "c-external"
-    return f'<span class="ep-chip {cls}">{mode.upper()}</span>'
-
-
-def case_bar(ws, extra_html: str = ""):
-    """Render the case info bar showing name, source file, scored states, generated reports."""
-    generated = []
-    if ws.has_internal():
-        generated.append(mode_chip("internal"))
-    if ws.has_external():
-        generated.append(mode_chip("external"))
-    gen_html = " ".join(generated) if generated else '<span class="ep-muted">no reports generated</span>'
-    left = (
-        f'<div class="ep-casebar-left">'
-        f'<span class="ep-case-title">{ws.name}</span>'
-        f'<span class="ep-case-meta">· {ws.original_filename or "—"}</span>'
-        f'<span class="ep-case-meta">· uploaded {ws.uploaded_at}</span>'
-        f'</div>'
-    )
-    right = f'<div>{gen_html} {extra_html}</div>'
-    st.markdown(f'<div class="ep-casebar">{left}{right}</div>', unsafe_allow_html=True)
-
-
-def score_card(col, label: str, score, state: str, hint: str = ""):
-    """Render a framework score card into the given Streamlit column."""
-    score_str = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
-    state_str = state if state else "—"
-    html = (
-        f'<div class="ep-scorecard">'
-        f'<div class="label">{label}</div>'
-        f'<div class="score">{score_str}</div>'
-        f'<div class="state">{state_str}</div>'
-        f'<div class="hint">{hint}</div>'
-        f'</div>'
-    )
-    col.markdown(html, unsafe_allow_html=True)
 
 
 def callout(text: str):
