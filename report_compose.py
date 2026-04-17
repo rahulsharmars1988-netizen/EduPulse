@@ -19,11 +19,11 @@ from __future__ import annotations
 from typing import Any, List, Dict
 import pandas as pd
 
-from .report_policy import (
+from report_policy import (
     ReportBlock, ReportTable,
     INTERNAL_ONLY, EXTERNAL_ONLY, BOTH,
 )
-from .config import soften_label, MODE_EXTERNAL, MODE_INTERNAL
+from config import soften_label, MODE_EXTERNAL, MODE_INTERNAL
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +64,6 @@ def _block_diagnostic_summary(case) -> ReportBlock:
         f"({_fmt_score(score)} / 100). Confidence in this reading is "
         f"<b>{conf.get('label', '—')}</b> (composite {_fmt_score(conf.get('composite_score'))}/100)."
     ]
-    # pulls up / pulls down
     callouts = []
     for fw, delta in integ.get("pulls_down", []):
         callouts.append(f"{fw} pulls the score down (Δ{delta:+.1f}).")
@@ -73,7 +72,7 @@ def _block_diagnostic_summary(case) -> ReportBlock:
     return ReportBlock(
         block_id="diagnostic_summary",
         title="Institutional Diagnostic Summary",
-        visibility=BOTH,                   # also shown in external (short form)
+        visibility=BOTH,
         headline=f"Integrated state: {state}",
         paragraphs=paragraphs,
         callouts=callouts,
@@ -110,19 +109,16 @@ def _block_pressure_map(case) -> ReportBlock:
 
 def _block_causal_findings(case) -> ReportBlock:
     bullets = []
-    # ICG causal — what drives the continuity state
     icg = case.icg
     if icg and icg.get("available"):
         for d in icg.get("key_drivers", []):
             bullets.append(f"[ICG] {d}")
-    # DMM causal — strongest and weakest vitality levers
     dmm = case.dmm
     if dmm and dmm.get("available"):
         for name, val in dmm.get("weakest", [])[:3]:
             bullets.append(f"[DMM] Weakest vitality lever: {name} ({val:.0f}/100).")
         for name, val in dmm.get("strongest", [])[:1]:
             bullets.append(f"[DMM] Strongest vitality lever: {name} ({val:.0f}/100).")
-    # GPIS causal — state distribution
     gpis = case.gpis
     if gpis and gpis.get("available"):
         for d in gpis.get("key_drivers", []):
@@ -144,7 +140,6 @@ def _block_sensitive_risks(case) -> ReportBlock:
     tables = []
     icg = case.icg
     if icg and icg.get("available"):
-        # high-risk faculty names — INTERNAL only
         flagged = icg.get("flagged_faculty")
         if flagged is not None and not flagged.empty:
             rows = flagged.head(8)[["Department", "Faculty Name", "Risk Level",
@@ -164,7 +159,6 @@ def _block_sensitive_risks(case) -> ReportBlock:
             bullets.append(
                 f"{icg['pct_retire_soon']:.0f}% of faculty are within a 3-year retirement horizon."
             )
-        # department hottest
         dept = icg.get("dept_concentration")
         if dept is not None and not dept.empty:
             hottest = dept.iloc[0]
@@ -342,7 +336,6 @@ def _block_traceability(case) -> ReportBlock:
         f"Template version: {case.template_version}",
         f"Workspace ID: {case.workspace_id}",
     ]
-    # confidence dimensions
     conf_rows = []
     for dim, obj in (case.confidence or {}).get("dimensions", {}).items():
         conf_rows.append([dim.replace("_", " ").title(), f"{obj['score']:.1f}", obj["note"]])
@@ -373,22 +366,18 @@ def _block_executive_summary(case) -> ReportBlock:
     integ = case.integrated
     state = soften_label(integ.get("state") or "—", MODE_EXTERNAL)
     score = integ.get("score")
-    # positive first, then one watch item
     strengths = []
     watches = []
-    # ICG
     if case.icg and case.icg.get("available"):
         if case.icg["state"] in ("Resilient", "Stable"):
             strengths.append("faculty continuity is holding up")
         else:
             watches.append("faculty continuity is under pressure")
-    # DMM
     if case.dmm and case.dmm.get("available"):
         if case.dmm["state"] in ("Anabolic", "Transitional"):
             strengths.append("programme vitality is broadly positive")
         else:
             watches.append("programme vitality needs renewal")
-    # GPIS
     if case.gpis and case.gpis.get("available"):
         if case.gpis["state"] in ("Strong Alignment", "Approximate Alignment", "Undersupply"):
             strengths.append("supply is aligned with demand")
@@ -439,23 +428,20 @@ def _block_health_position(case) -> ReportBlock:
 
 def _block_strategic_strengths(case) -> ReportBlock:
     bullets = []
-    # ICG strength
     if case.icg and case.icg.get("available"):
         if case.icg.get("pct_high_risk", 0) < 10:
             bullets.append("Faculty system shows low structural risk concentration.")
         if case.icg.get("pct_sole_no_backup", 0) < 10:
             bullets.append("Sole-expert exposure is well managed.")
-    # DMM strength — use strongest sub-scores
     for s in _top_strengths_from_dmm(case.dmm)[:2]:
         bullets.append(f"Programme vitality is led by: {s}.")
-    # GPIS strength
     if case.gpis and case.gpis.get("available"):
         dist = case.gpis["state_distribution"].set_index("State")["Seat %"].to_dict()
         good = dist.get("Strong Alignment", 0) + dist.get("Approximate Alignment", 0)
         if good >= 50:
             bullets.append(f"{good:.0f}% of seats sit in well-aligned domain-geography pairs.")
         if dist.get("Undersupply", 0) > 0:
-            bullets.append(f"Strong-demand areas at or above capacity — clear growth headroom.")
+            bullets.append("Strong-demand areas at or above capacity — clear growth headroom.")
     if not bullets:
         bullets.append("Institution maintains baseline operational strength across the three dimensions.")
     return ReportBlock(
@@ -469,16 +455,13 @@ def _block_strategic_strengths(case) -> ReportBlock:
 
 def _block_watch_areas(case) -> ReportBlock:
     bullets = []
-    # ICG — sanitised (no names)
     if case.icg and case.icg.get("available") and case.icg["state"] in ("Vulnerable", "Priority Action"):
         if case.icg.get("pct_sole_no_backup", 0) >= 10:
             bullets.append("Faculty continuity is exposed to sole-expert dependency.")
         if case.icg.get("pct_retire_soon", 0) >= 15:
             bullets.append("A retirement wave is forming in the next 3 years.")
-    # DMM — sanitised
     for s in _top_weaknesses_from_dmm(case.dmm)[:2]:
         bullets.append(f"Programme vitality lags on: {s.split(' (')[0]}.")
-    # GPIS — sanitised
     if case.gpis and case.gpis.get("available"):
         dist = case.gpis["state_distribution"].set_index("State")["Seat %"].to_dict()
         if dist.get("Mismatch", 0) >= 10:
@@ -500,16 +483,12 @@ def _block_watch_areas(case) -> ReportBlock:
 
 
 def _block_improvement_priorities(case) -> ReportBlock:
-    # Re-use the action priority logic but cleanse labels for external
     pri = _action_priority(case.icg, case.dmm, case.gpis)
-    # take the highest-horizon items only, soften language
     items = pri["immediate"][:3] + pri["near_term"][:3]
     if not items:
         items = ["Maintain current practices; refresh the diagnostic each cycle."]
-    # simplify framework tags
     cleaned = []
     for it in items:
-        # strip "ICG:" / "DMM:" / "GPIS:" prefixes for external
         for prefix in ("ICG:", "DMM:", "GPIS:"):
             if it.startswith(prefix):
                 it = it[len(prefix):].strip()
