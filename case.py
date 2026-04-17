@@ -14,13 +14,13 @@ import uuid
 import re
 from pathlib import Path
 
-from .config import LOGIC_VERSION, TEMPLATE_VERSION
-from .validation import validate_workbook, ValidationReport
-from .scoring import score_icg, score_dmm, score_gpis, integrate_edupulse
-from .confidence import compute_confidence
-from .report_compose import compose_internal_blocks, compose_external_blocks
-from .report_policy import new_report, Report, MODE_INTERNAL, MODE_EXTERNAL
-from .config import (
+from config import LOGIC_VERSION, TEMPLATE_VERSION
+from validation import validate_workbook, ValidationReport
+from scoring import score_icg, score_dmm, score_gpis, integrate_edupulse
+from confidence import compute_confidence
+from report_compose import compose_internal_blocks, compose_external_blocks
+from report_policy import new_report, Report, MODE_INTERNAL, MODE_EXTERNAL
+from config import (
     SHEET_ICG, SHEET_DMM, SHEET_GPIS_SUPPLY, SHEET_GPIS_DEMAND,
 )
 
@@ -67,10 +67,14 @@ class CaseWorkspace:
 
     # legacy compatibility
     mode: str = "internal"
+
     @property
-    def case_id(self): return self.workspace_id
+    def case_id(self):
+        return self.workspace_id
+
     @property
-    def timestamp(self): return self.uploaded_at
+    def timestamp(self):
+        return self.uploaded_at
 
     # ---- status helpers ----
     def is_scored(self) -> bool:
@@ -86,8 +90,10 @@ class CaseWorkspace:
     def run_internal(self) -> Report:
         blocks = compose_internal_blocks(self)
         report = new_report(
-            mode=MODE_INTERNAL, blocks=blocks,
-            case_name=self.name, original_filename=self.original_filename,
+            mode=MODE_INTERNAL,
+            blocks=blocks,
+            case_name=self.name,
+            original_filename=self.original_filename,
             logic_version=self.logic_version,
         )
         self.internal_report = report
@@ -97,8 +103,10 @@ class CaseWorkspace:
     def run_external(self) -> Report:
         blocks = compose_external_blocks(self)
         report = new_report(
-            mode=MODE_EXTERNAL, blocks=blocks,
-            case_name=self.name, original_filename=self.original_filename,
+            mode=MODE_EXTERNAL,
+            blocks=blocks,
+            case_name=self.name,
+            original_filename=self.original_filename,
             logic_version=self.logic_version,
         )
         self.external_report = report
@@ -155,7 +163,10 @@ def build_workspace(xls_bytes: bytes, case_name: str,
         template_version=TEMPLATE_VERSION,
         uploaded_bytes=xls_bytes,
         validation=report,
-        icg=icg, dmm=dmm, gpis=gpis, integrated=integrated,
+        icg=icg,
+        dmm=dmm,
+        gpis=gpis,
+        integrated=integrated,
         confidence=conf,
     )
 
