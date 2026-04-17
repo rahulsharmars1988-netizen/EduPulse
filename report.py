@@ -25,9 +25,9 @@ from reportlab.platypus import (
     Image as RLImage, Flowable,
 )
 
-from .config import APP_NAME, APP_TAGLINE, LOGIC_VERSION
-from .report_policy import Report, ReportBlock, MODE_INTERNAL, MODE_EXTERNAL
-from .branding import BrandingSettings
+from config import APP_NAME, APP_TAGLINE, LOGIC_VERSION
+from report_policy import Report, ReportBlock, MODE_INTERNAL, MODE_EXTERNAL
+from branding import BrandingSettings
 
 # Palette
 INK = colors.HexColor("#0F172A")
@@ -142,7 +142,6 @@ def _header_row(content_width: float, pairs):
 def _data_table(table, content_width, max_rows=14):
     cols = table.columns
     n = len(cols)
-    # wide first column for tables whose first column is a name-like field
     if n > 1 and cols[0] in {"Programme Name", "Department", "Dimension",
                               "Horizon", "Category"}:
         first = content_width * 0.30
@@ -194,7 +193,6 @@ def _render_block(block: ReportBlock, content_width: float, styles, mode: str) -
     for b in block.bullets:
         out.append(Paragraph(f"• {b}", styles["bullet"]))
     if block.labeled_bullets:
-        # group by label for clarity
         current = None
         for label, text in block.labeled_bullets:
             if label != current:
@@ -219,17 +217,15 @@ def _signature_block(branding: BrandingSettings, content_width: float, styles) -
     out = []
     if not branding:
         return out
-    # build a right-aligned signature column
+
     name = branding.authorized_signature_name.strip() if branding else ""
     desig = branding.designation.strip() if branding else ""
     inst = branding.institution_name.strip() if branding else ""
     owner = branding.copyright_owner_name.strip() if branding else ""
 
-    # If nothing to show, skip
     if not any([name, desig, inst, owner, branding.has_signature_image()]):
         return out
 
-    # Image
     sig_image = None
     if branding.has_signature_image():
         try:
@@ -238,7 +234,6 @@ def _signature_block(branding: BrandingSettings, content_width: float, styles) -
         except Exception:
             sig_image = None
 
-    # Right column content
     right_stack = []
     if sig_image is not None:
         right_stack.append(sig_image)
@@ -253,7 +248,6 @@ def _signature_block(branding: BrandingSettings, content_width: float, styles) -
     if owner:
         right_stack.append(Paragraph(f"© {owner}", styles["sig_desig"]))
 
-    # two-column layout: footer note left, signature right
     left_cell = [Paragraph(branding.footer_note, styles["small"])] if branding.footer_note else [Paragraph(" ", styles["small"])]
     right_cell = right_stack or [Paragraph(" ", styles["small"])]
     t = Table([[left_cell, right_cell]],
@@ -290,7 +284,6 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
     is_external = report.mode == MODE_EXTERNAL
     inst = branding.institution_name if branding and branding.institution_name else ""
 
-    # Cover / header
     if is_external:
         flow.append(ColoredBand(
             content_width, height=32 * mm, color=ACCENT,
@@ -317,7 +310,6 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
         flow.append(HRule(content_width))
         flow.append(Spacer(1, 6))
 
-    # Score / confidence banner — both modes, but simpler for external
     if scored_summary:
         state = scored_summary.get("state", "—")
         score = scored_summary.get("score")
@@ -338,17 +330,11 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
         flow.append(_header_row(content_width, pairs))
         flow.append(Spacer(1, 10))
 
-    # Page break after cover for external mode, no break for internal
-    # (internal puts content right after the banner to save space)
-
-    # Blocks
     for block in report.blocks:
         flow.extend(_render_block(block, content_width, styles, report.mode))
 
-    # Signature / footer
     flow.extend(_signature_block(branding, content_width, styles))
 
-    # Minimal disclaimer
     flow.append(Spacer(1, 6))
     flow.append(Paragraph(
         "This report is produced by the EduPulse Institutional Health Diagnostics Engine — "
@@ -393,9 +379,5 @@ def render_external_pdf(case, branding: Optional[BrandingSettings] = None) -> by
     return pdf
 
 
-# ---------------------------------------------------------------------------
-# Backwards compatibility — old code imports `build_pdf(case)`
-# Defaults to internal mode and no branding.
-# ---------------------------------------------------------------------------
 def build_pdf(case, branding: Optional[BrandingSettings] = None) -> bytes:
     return render_internal_pdf(case, branding=branding)
