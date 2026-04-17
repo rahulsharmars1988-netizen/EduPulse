@@ -11,7 +11,12 @@ st.title("Upload Case")
 
 uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
-if uploaded_file:
+# DEBUG LINE (IMPORTANT)
+st.write("File status:", uploaded_file)
+
+if uploaded_file is not None:
+    st.success("File received")
+
     file_bytes = uploaded_file.read()
 
     ws = build_workspace(
@@ -27,25 +32,12 @@ if uploaded_file:
     else:
         st.success("Validation Passed")
 
-        # RUN BOTH REPORTS
         ws.run_internal()
         ws.run_external()
 
         st.subheader("EduPulse Result")
 
-        st.write("### Integrated Score")
-        st.write(ws.integrated)
-
-        st.write("### Confidence")
-        st.write(ws.confidence)
-
-        st.write("### ICG")
-        st.write(ws.icg)
-
-        st.write("### DMM")
-        st.write(ws.dmm)
-
-        st.write("### GPIS")
-        st.write(ws.gpis)
+        st.write("Integrated:", ws.integrated)
+        st.write("Confidence:", ws.confidence)
 
 footer()
