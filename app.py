@@ -1,6 +1,7 @@
 import streamlit as st
 from case import build_workspace
 from ui import inject_css, hero, footer
+from report import render_internal_pdf, render_external_pdf
 
 
 def render_report_ui(report):
@@ -73,18 +74,48 @@ if uploaded_file is not None:
             st.subheader("Internal Report")
             render_report_ui(report)
 
+            internal_pdf = render_internal_pdf(ws)
+            st.download_button(
+                label="Download Internal PDF",
+                data=internal_pdf,
+                file_name=f"{ws.name}_internal_report.pdf",
+                mime="application/pdf",
+            )
+
         if run_external:
             report = ws.run_external()
             st.subheader("External Report")
             render_report_ui(report)
+
+            external_pdf = render_external_pdf(ws)
+            st.download_button(
+                label="Download External PDF",
+                data=external_pdf,
+                file_name=f"{ws.name}_external_report.pdf",
+                mime="application/pdf",
+            )
 
         if run_both:
             internal_report, external_report = ws.run_both()
 
             st.subheader("Internal Report")
             render_report_ui(internal_report)
+            internal_pdf = render_internal_pdf(ws)
+            st.download_button(
+                label="Download Internal PDF",
+                data=internal_pdf,
+                file_name=f"{ws.name}_internal_report.pdf",
+                mime="application/pdf",
+            )
 
             st.subheader("External Report")
             render_report_ui(external_report)
+            external_pdf = render_external_pdf(ws)
+            st.download_button(
+                label="Download External PDF",
+                data=external_pdf,
+                file_name=f"{ws.name}_external_report.pdf",
+                mime="application/pdf",
+            )
 
 footer()
