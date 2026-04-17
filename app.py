@@ -11,12 +11,7 @@ st.title("Upload Case")
 
 uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
-# DEBUG LINE (IMPORTANT)
-st.write("File status:", uploaded_file)
-
 if uploaded_file is not None:
-    st.success("File received")
-
     file_bytes = uploaded_file.read()
 
     ws = build_workspace(
@@ -32,12 +27,34 @@ if uploaded_file is not None:
     else:
         st.success("Validation Passed")
 
-        ws.run_internal()
-        ws.run_external()
+        st.subheader("Analysis Mode")
+        c1, c2, c3 = st.columns(3)
 
-        st.subheader("EduPulse Result")
+        run_internal = c1.button("Run Internal Analysis")
+        run_external = c2.button("Run External Analysis")
+        run_both = c3.button("Generate Both")
 
+        st.subheader("Core Result")
         st.write("Integrated:", ws.integrated)
         st.write("Confidence:", ws.confidence)
+
+        if run_internal:
+            report = ws.run_internal()
+            st.subheader("Internal Report")
+            st.write(report)
+
+        if run_external:
+            report = ws.run_external()
+            st.subheader("External Report")
+            st.write(report)
+
+        if run_both:
+            internal_report, external_report = ws.run_both()
+
+            st.subheader("Internal Report")
+            st.write(internal_report)
+
+            st.subheader("External Report")
+            st.write(external_report)
 
 footer()
