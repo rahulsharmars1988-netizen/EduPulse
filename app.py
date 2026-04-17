@@ -2,6 +2,36 @@ import streamlit as st
 from case import build_workspace
 from ui import inject_css, hero, footer
 
+
+def render_report_ui(report):
+    for block in report.blocks:
+        st.markdown(f"## {block.title}")
+
+        if block.headline:
+            st.markdown(f"**{block.headline}**", unsafe_allow_html=True)
+
+        for p in block.paragraphs:
+            st.markdown(p, unsafe_allow_html=True)
+
+        for c in block.callouts:
+            st.info(c)
+
+        for b in block.bullets:
+            st.markdown(f"- {b}")
+
+        if block.labeled_bullets:
+            current = None
+            for label, text in block.labeled_bullets:
+                if label != current:
+                    current = label
+                    st.markdown(f"### {label}")
+                st.markdown(f"- {text}")
+
+        for table in block.tables:
+            st.markdown(f"### {table.title}")
+            st.table(table.rows)
+
+
 st.set_page_config(page_title="EduPulse", layout="wide")
 
 inject_css()
@@ -35,26 +65,26 @@ if uploaded_file is not None:
         run_both = c3.button("Generate Both")
 
         st.subheader("Core Result")
-        st.write("Integrated:", ws.integrated)
-        st.write("Confidence:", ws.confidence)
+        st.json(ws.integrated)
+        st.json(ws.confidence)
 
         if run_internal:
             report = ws.run_internal()
             st.subheader("Internal Report")
-            st.write(report)
+            render_report_ui(report)
 
         if run_external:
             report = ws.run_external()
             st.subheader("External Report")
-            st.write(report)
+            render_report_ui(report)
 
         if run_both:
             internal_report, external_report = ws.run_both()
 
             st.subheader("Internal Report")
-            st.write(internal_report)
+            render_report_ui(internal_report)
 
             st.subheader("External Report")
-            st.write(external_report)
+            render_report_ui(external_report)
 
 footer()
