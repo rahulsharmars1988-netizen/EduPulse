@@ -8,7 +8,7 @@ framework contributes a deterministic numeric score that is weighted.
 from __future__ import annotations
 
 from typing import Dict, Any
-from ..config import EDUPULSE_WEIGHTS, EDUPULSE_THRESHOLDS
+from config import EDUPULSE_WEIGHTS, EDUPULSE_THRESHOLDS
 
 
 def _state_for(score: float) -> str:
@@ -47,15 +47,12 @@ def integrate_edupulse(icg: Dict[str, Any], dmm: Dict[str, Any], gpis: Dict[str,
             "missing": missing,
         }
 
-    # normalize against available weight so missing frameworks don't drag to zero
     normalised = weighted_sum / present_weight
     final_state = _state_for(normalised)
 
-    # confidence: coverage-weighted
     coverages = [r.get("coverage_pct", 0) for r in (icg, dmm, gpis) if r and r.get("available")]
     avg_coverage = sum(coverages) / len(coverages) if coverages else 0
 
-    # framework presence penalty: if any framework is missing, cap confidence
     if missing:
         avg_coverage *= (1 - 0.15 * len(missing))
 
@@ -66,7 +63,6 @@ def integrate_edupulse(icg: Dict[str, Any], dmm: Dict[str, Any], gpis: Dict[str,
     else:
         confidence = "Low"
 
-    # causal summary — which framework pulls the number most
     signed = []
     for k, d in contributions.items():
         if d["score"] is not None:
