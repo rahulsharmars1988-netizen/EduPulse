@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from config import APP_NAME, APP_TAGLINE, LOGIC_VERSION, TEMPLATE_VERSION
+from .config import APP_NAME, APP_TAGLINE, LOGIC_VERSION, TEMPLATE_VERSION
 
 
 def inject_css():
