@@ -1032,13 +1032,25 @@ def _block_executive_summary(case) -> ReportBlock:
         else:
             risks.append("market alignment is weakening external conversion")
 
-    st_text = ", ".join(strengths) if strengths else "performance signals remain mixed"
-    rs_text = ", ".join(risks) if risks else "no immediate structural risks identified"
+    if len(strengths) >= 2:
+        strengths_text = f"{strengths[0]} and {strengths[1]}"
+    elif len(strengths) == 1:
+        strengths_text = strengths[0]
+    else:
+        strengths_text = "performance signals remain mixed"
+
+    if len(risks) >= 2:
+        risks_text = f"{risks[0]} and {risks[1]}"
+    elif len(risks) == 1:
+        risks_text = risks[0]
+    else:
+        risks_text = "no immediate structural risks identified"
 
     headline = (
-        f"The institution is currently <b>{state}</b>, with {st_text}. "
-        f"However, {rs_text}."
+        f"The institution is currently <b>{state}</b>, with momentum supported by {strengths_text}. "
+        f"However, {risks_text}."
     )
+
     return ReportBlock(
         block_id="executive_summary",
         title="Executive Summary",
@@ -1049,7 +1061,6 @@ def _block_executive_summary(case) -> ReportBlock:
             "Implication: Without targeted intervention in the weakest layer, current strengths may not translate into sustained institutional advantage."
         ],
     )
-
 
 def _block_health_position(case) -> ReportBlock:
     rows = []
