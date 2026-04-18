@@ -46,6 +46,7 @@ if run:
     if not case_name.strip():
         st.error("Please give the case a name before running.")
         st.stop()
+
     existing = storage.get_workspace(case_name.strip())
     if existing:
         st.warning(
@@ -54,7 +55,7 @@ if run:
         )
 
     with st.spinner("Validating and scoring…"):
-        xls_bytes = up.read()
+        xls_bytes = up.getvalue()
         ws = build_workspace(xls_bytes, case_name=case_name.strip(), original_filename=up.name)
 
     if not ws.validation.ok:
@@ -67,7 +68,10 @@ if run:
     st.session_state["active_workspace_name"] = ws.name
 
     if ws.validation.warnings:
-        with st.expander(f"⚠️ {len(ws.validation.warnings)} validation warning(s) (non-blocking)", expanded=False):
+        with st.expander(
+            f"⚠️ {len(ws.validation.warnings)} validation warning(s) (non-blocking)",
+            expanded=False,
+        ):
             for w in ws.validation.warnings:
                 st.write(f"• {w}")
 
@@ -100,24 +104,33 @@ st.write("Run one mode, the other, or both. Results stay in this session — no 
 
 b1, b2, b3, b4 = st.columns(4)
 with b1:
-    if st.button("▶ Run Internal Analysis", use_container_width=True,
-                 type="primary" if not ws.has_internal() else "secondary",
-                 key="upl_run_internal"):
+    if st.button(
+        "▶ Run Internal Analysis",
+        use_container_width=True,
+        type="primary" if not ws.has_internal() else "secondary",
+        key="upl_run_internal",
+    ):
         ws.run_internal()
         st.success("Internal report generated.")
         st.rerun()
+
 with b2:
-    if st.button("▶ Run External Analysis", use_container_width=True,
-                 type="primary" if not ws.has_external() else "secondary",
-                 key="upl_run_external"):
+    if st.button(
+        "▶ Run External Analysis",
+        use_container_width=True,
+        type="primary" if not ws.has_external() else "secondary",
+        key="upl_run_external",
+    ):
         ws.run_external()
         st.success("External report generated.")
         st.rerun()
+
 with b3:
     if st.button("▶ Generate Both Reports", use_container_width=True, key="upl_run_both"):
         ws.run_both()
         st.success("Both reports generated.")
         st.rerun()
+
 with b4:
     if st.button("✕ Clear Case", use_container_width=True, key="upl_clear"):
         storage.remove_workspace(ws.name)
@@ -130,6 +143,6 @@ if ws.has_internal() or ws.has_external():
         "and compare internal vs external renderings of this same case."
     )
     if st.button("→ Go to Analysis", use_container_width=True, key="upl_to_analysis"):
-        st.switch_page("pages/3_Analysis.py")
+        st.switch_page("pages/03_📊_Analysis.py")
 
 footer()
