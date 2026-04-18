@@ -20,6 +20,16 @@ from ui import (
 import storage
 
 
+# ---------------------------------------------------------------------------
+# Page paths — must match actual files exactly
+# ---------------------------------------------------------------------------
+PAGE_DOWNLOAD_TEMPLATE = "pages/01_📥_Download_Template.py"
+PAGE_UPLOAD_CASE = "pages/02_⬆️_Upload_Case.py"
+PAGE_ANALYSIS = "pages/03_📊_Analysis.py"
+PAGE_COMPARE_CASES = "pages/04_🔁_Compare_Cases.py"
+PAGE_REPORT_SETTINGS = "pages/06_⚙️_Report_Settings.py"
+
+
 st.set_page_config(
     page_title=f"{APP_NAME} — {APP_TAGLINE}",
     page_icon="🩺",
@@ -81,19 +91,19 @@ section_title("Quick actions")
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1:
     if st.button("📥 Download Template", use_container_width=True, key="qa_download_template"):
-        st.switch_page("pages/1_Download_Template.py")
+        st.switch_page(PAGE_DOWNLOAD_TEMPLATE)
 with c2:
     if st.button("⬆️ Upload Case", use_container_width=True, key="qa_upload_case"):
-        st.switch_page("pages/2_Upload_Case.py")
+        st.switch_page(PAGE_UPLOAD_CASE)
 with c3:
     if st.button("📊 Analysis & Reports", use_container_width=True, key="qa_analysis"):
-        st.switch_page("pages/3_Analysis.py")
+        st.switch_page(PAGE_ANALYSIS)
 with c4:
     if st.button("🔁 Compare Cases", use_container_width=True, key="qa_compare"):
-        st.switch_page("pages/4_Compare_Cases.py")
+        st.switch_page(PAGE_COMPARE_CASES)
 with c5:
     if st.button("⚙️ Report Settings", use_container_width=True, key="qa_settings"):
-        st.switch_page("pages/6_Report_Settings.py")
+        st.switch_page(PAGE_REPORT_SETTINGS)
 
 
 # ---------------------------------------------------------------------------
@@ -150,13 +160,13 @@ if active is not None:
     d1, d2, d3 = st.columns(3)
     with d1:
         if st.button("🔎 Open full Analysis", use_container_width=True, key="gd_analysis"):
-            st.switch_page("pages/3_Analysis.py")
+            st.switch_page(PAGE_ANALYSIS)
     with d2:
         if st.button("🔁 Compare with other cases", use_container_width=True, key="gd_compare"):
-            st.switch_page("pages/4_Compare_Cases.py")
+            st.switch_page(PAGE_COMPARE_CASES)
     with d3:
         if st.button("⬆️ Upload another case", use_container_width=True, key="gd_upload"):
-            st.switch_page("pages/2_Upload_Case.py")
+            st.switch_page(PAGE_UPLOAD_CASE)
 
     if not active.has_internal() or not active.has_external():
         callout(
