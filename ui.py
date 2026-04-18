@@ -479,10 +479,15 @@ def divider() -> None:
 
 def callout(
     title: str,
-    body: str,
+    body: Optional[str] = None,
     tone: str = "info",
 ) -> None:
     tone = tone if tone in {"info", "success", "warn", "danger"} else "info"
+
+    if body is None:
+        body = title
+        title = "Note"
+
     st.markdown(
         f"""
         <div class="ep-callout {tone}">
@@ -641,7 +646,20 @@ def render_decision_snapshot(
     )
 
 
-def render_decision_dashboard(result: Dict[str, Any]) -> None:
+def render_decision_dashboard(result: Any) -> None:
+    if result is None:
+        callout(
+            "Decision dashboard unavailable",
+            "No result payload is available for dashboard rendering.",
+            tone="warn",
+        )
+        return
+
+    if hasattr(result, "__dict__") and not isinstance(result, dict):
+        possible = result.__dict__
+        if isinstance(possible, dict):
+            result = possible
+
     if not isinstance(result, dict):
         callout(
             "Decision dashboard unavailable",
