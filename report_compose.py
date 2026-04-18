@@ -10,11 +10,18 @@ from __future__ import annotations
 from typing import Any, List, Dict
 import pandas as pd
 
-from .report_policy import (
-    ReportBlock, ReportTable,
-    INTERNAL_ONLY, EXTERNAL_ONLY, BOTH,
-)
-from .config import soften_label, MODE_EXTERNAL, MODE_INTERNAL
+try:
+    from .report_policy import (
+        ReportBlock, ReportTable,
+        INTERNAL_ONLY, EXTERNAL_ONLY, BOTH,
+    )
+    from .config import soften_label, MODE_EXTERNAL, MODE_INTERNAL
+except ImportError:
+    from report_policy import (
+        ReportBlock, ReportTable,
+        INTERNAL_ONLY, EXTERNAL_ONLY, BOTH,
+    )
+    from config import soften_label, MODE_EXTERNAL, MODE_INTERNAL
 
 
 # ---------------------------------------------------------------------------
