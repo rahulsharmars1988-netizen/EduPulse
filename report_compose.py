@@ -56,7 +56,7 @@ def _top_weaknesses_from_dmm(dmm) -> List[str]:
 
 STATUS_LINES = {
     "Thriving":  "System operating at high maturity and stability.",
-    "Healthy":   "System stable with minor optimization opportunities.",
+    "Healthy":   "System stable with minor optimisation opportunities.",
     "Stretched": "System under pressure and requires targeted improvement.",
     "At Risk":   "Critical gaps are affecting system performance.",
     "Fragile":   "Multiple structural weaknesses are visible.",
@@ -223,7 +223,11 @@ def build_root_cause_summary(case) -> Dict[str, Any]:
 
     summary = "Root cause is not clear from the available evidence."
     if reasons:
-        summary = "The current position is primarily being driven by: " + "; ".join(reasons) + "."
+        summary = (
+            "The current position is primarily driven by: "
+            + "; ".join(reasons)
+            + ". This indicates that the weakest layer is materially influencing overall system stability."
+        )
 
     return {
         "weakest_framework": weakest,
@@ -521,7 +525,7 @@ def _action_priority(icg, dmm, gpis) -> Dict[str, List[str]]:
     if icg and icg.get("available"):
         st = icg["state"]
         if st == "Priority Action":
-            immediate.append("ICG: assign backup faculty for every sole-expert role and document succession protocols.")
+            immediate.append("ICG: establish backup coverage for every sole-expert role and document succession protocols.")
             immediate.append("ICG: publish a 3-year succession roadmap for imminent retirements.")
         elif st == "Vulnerable":
             near.append("ICG: close knowledge-transfer gaps through documentation and co-teaching.")
@@ -594,7 +598,10 @@ def _block_system_snapshot(case) -> ReportBlock:
 
 def _block_balance_analysis(case) -> ReportBlock:
     bal = build_balance_analysis(case)
-    paragraphs = [bal["insight"]]
+    paragraphs = [
+        bal["insight"],
+        "Implication: Unless the weakest framework improves, stronger dimensions may support performance temporarily but will not fully stabilise the institution."
+    ]
     bullets = []
     if bal["strongest_framework"]:
         bullets.append(f"Strongest framework: <b>{bal['strongest_framework']}</b>")
@@ -641,6 +648,7 @@ def _block_strategic_insights(case) -> ReportBlock:
         visibility=BOTH,
         paragraphs=[
             sm["strategic_meaning"],
+            "Implication: Strategic gains will depend less on expansion and more on correcting the weakest structural layer."
         ],
         bullets=insights or ["No clear strategic signals emerge from the current reading."],
         callouts=[
@@ -657,7 +665,10 @@ def _block_consequence_outlook(case) -> ReportBlock:
         block_id="consequence_outlook",
         title="Consequence Outlook",
         visibility=BOTH,
-        paragraphs=[co["consequence_outlook"]],
+        paragraphs=[
+            co["consequence_outlook"],
+            "Implication: Delayed correction will increase the effort required for recovery and may reduce strategic flexibility."
+        ],
         meta=co,
     )
 
@@ -669,7 +680,7 @@ def _block_priority_sequence(case) -> ReportBlock:
         title="Priority Sequence",
         visibility=INTERNAL_ONLY,
         paragraphs=[
-            "Not all actions should be executed at once. This sequence identifies what should be addressed first, next, and then scaled."
+            "Not all actions should be executed at once. This sequence identifies what should be addressed first, what should follow next, and what should scale only after stability improves."
         ],
         labeled_bullets=[
             ("First", seq["first_priority"]),
@@ -1001,32 +1012,32 @@ def _block_executive_summary(case) -> ReportBlock:
     state = soften_label(integ.get("state") or "—", MODE_EXTERNAL)
 
     strengths = []
-    watches = []
+    risks = []
 
     if case.icg and case.icg.get("available"):
         if case.icg["state"] in ("Resilient", "Stable"):
-            strengths.append("faculty continuity is stable")
+            strengths.append("faculty continuity is structurally stable")
         else:
-            watches.append("faculty continuity is under pressure")
+            risks.append("continuity risk is emerging within faculty systems")
 
     if case.dmm and case.dmm.get("available"):
         if case.dmm["state"] in ("Anabolic", "Transitional"):
-            strengths.append("programme vitality is performing")
+            strengths.append("programme vitality is driving momentum")
         else:
-            watches.append("programme vitality requires renewal")
+            risks.append("programme vitality is not sustaining expected value delivery")
 
     if case.gpis and case.gpis.get("available"):
         if case.gpis["state"] in ("Strong Alignment", "Approximate Alignment", "Undersupply"):
-            strengths.append("market alignment is favourable")
+            strengths.append("market alignment is supporting performance")
         else:
-            watches.append("market alignment is weak")
+            risks.append("market alignment is weakening external conversion")
 
-    st_text = ", ".join(strengths) if strengths else "performance signals are mixed"
-    wt_text = ", ".join(watches) if watches else "no immediate risks"
+    st_text = ", ".join(strengths) if strengths else "performance signals remain mixed"
+    rs_text = ", ".join(risks) if risks else "no immediate structural risks identified"
+
     headline = (
-        f"The institution is currently <b>{state}</b>. "
-        f"Strengths: {st_text}. "
-        f"Watch areas: {wt_text}."
+        f"The institution is currently <b>{state}</b>, with {st_text}. "
+        f"However, {rs_text}."
     )
     return ReportBlock(
         block_id="executive_summary",
@@ -1034,7 +1045,8 @@ def _block_executive_summary(case) -> ReportBlock:
         visibility=EXTERNAL_ONLY,
         headline=headline,
         paragraphs=[
-            "This summary captures where the institution stands today and what requires close attention next."
+            "This position indicates where performance is being sustained and where structural risks may limit future stability or scale.",
+            "Implication: Without targeted intervention in the weakest layer, current strengths may not translate into sustained institutional advantage."
         ],
     )
 
@@ -1068,8 +1080,13 @@ def _block_strategic_strengths(case) -> ReportBlock:
             bullets.append("Faculty risk concentration remains low.")
         if case.icg.get("pct_sole_no_backup", 0) < 10:
             bullets.append("Sole-expert exposure is being managed well.")
-    for s in _top_strengths_from_dmm(case.dmm)[:2]:
-        bullets.append(f"Programme vitality is led by: {s}.")
+
+    strengths = _top_strengths_from_dmm(case.dmm)[:2]
+    if len(strengths) >= 1:
+        bullets.append(f"Programme vitality is strongest in: {strengths[0]}.")
+    if len(strengths) >= 2:
+        bullets.append(f"Another clear strength is: {strengths[1]}.")
+
     if case.gpis and case.gpis.get("available"):
         dist_df = case.gpis.get("state_distribution")
         dist = {}
@@ -1083,13 +1100,14 @@ def _block_strategic_strengths(case) -> ReportBlock:
             bullets.append(f"{good:.0f}% of seats sit in well-aligned domain-geography pairs.")
         if dist.get("Undersupply", 0) > 0:
             bullets.append("High-demand areas at or above capacity indicate visible growth headroom.")
+
     if not bullets:
         bullets.append("The institution maintains baseline operational strength across the three dimensions.")
     return ReportBlock(
         block_id="strategic_strengths",
         title="Strategic Strengths",
         visibility=EXTERNAL_ONLY,
-        paragraphs=["These strengths are the platform the institution can build on."],
+        paragraphs=["These strengths form the platform the institution can build on."],
         bullets=bullets,
     )
 
@@ -1101,8 +1119,13 @@ def _block_watch_areas(case) -> ReportBlock:
             bullets.append("Faculty continuity is exposed to sole-expert dependency.")
         if case.icg.get("pct_retire_soon", 0) >= 15:
             bullets.append("A retirement wave is forming within the next 3 years.")
-    for s in _top_weaknesses_from_dmm(case.dmm)[:2]:
-        bullets.append(f"Programme vitality is weakest on: {s.split(' (')[0]}.")
+
+    weaknesses = _top_weaknesses_from_dmm(case.dmm)[:2]
+    if len(weaknesses) >= 1:
+        bullets.append(f"Programme vitality is weakest on: {weaknesses[0].split(' (')[0]}.")
+    if len(weaknesses) >= 2:
+        bullets.append(f"Another area requiring attention is: {weaknesses[1].split(' (')[0]}.")
+
     if case.gpis and case.gpis.get("available"):
         dist_df = case.gpis.get("state_distribution")
         dist = {}
@@ -1115,6 +1138,7 @@ def _block_watch_areas(case) -> ReportBlock:
             bullets.append(f"{dist['Mismatch']:.0f}% of seats sit in low- or no-demand areas.")
         if dist.get("Oversupply", 0) >= 15:
             bullets.append("Capacity exceeds visible demand in parts of the portfolio.")
+
     if not bullets:
         bullets.append("No material watch areas surface at this level of review.")
     return ReportBlock(
@@ -1133,19 +1157,24 @@ def _block_improvement_priorities(case) -> ReportBlock:
     items = pri["immediate"][:3] + pri["near_term"][:3]
     if not items:
         items = ["Maintain current trajectory and reassess periodically."]
+
     cleaned = []
     for it in items:
         for prefix in ("ICG:", "DMM:", "GPIS:"):
             if it.startswith(prefix):
                 it = it[len(prefix):].strip()
                 break
+        it = it.capitalize()
+        if not it.endswith("."):
+            it += "."
         cleaned.append(it)
+
     return ReportBlock(
         block_id="improvement_priorities",
         title="Improvement Priorities",
         visibility=EXTERNAL_ONLY,
         paragraphs=[
-            "The following moves are most likely to improve the institution's position."
+            "The following actions are most likely to strengthen institutional position in the near term."
         ],
         bullets=cleaned,
     )
@@ -1155,16 +1184,20 @@ def _block_forward_outlook(case) -> ReportBlock:
     integ = case.integrated or {}
     state = soften_label(integ.get("state") or "—", MODE_EXTERNAL)
     if state in ("Thriving", "Healthy"):
-        outlook = "The forward outlook is positive. With continued discipline, the institution should consolidate and strengthen its position."
+        outlook = "The institution is positioned to strengthen further with disciplined execution."
     elif state in ("Stretched", "At Risk", "Fragile"):
-        outlook = "The forward outlook is mixed. Improvement is achievable, but it will require immediate and focused intervention."
+        outlook = "Improvement is achievable, but requires immediate and focused intervention."
     else:
-        outlook = "The forward outlook remains uncertain and requires structured corrective action."
+        outlook = "The future position remains uncertain without structured corrective action."
+
     return ReportBlock(
         block_id="forward_outlook",
         title="Forward Outlook",
         visibility=EXTERNAL_ONLY,
-        paragraphs=[outlook],
+        paragraphs=[
+            outlook,
+            "Implication: The next improvement cycle will determine whether the institution stabilises or enters a deeper correction phase."
+        ],
     )
 
 
