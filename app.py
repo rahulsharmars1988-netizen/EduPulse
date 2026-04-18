@@ -30,7 +30,10 @@ inject_css()
 
 storage.all_workspaces()
 
-hero()
+hero(
+    f"{APP_NAME} — {APP_TAGLINE}",
+    "Multi-layer institutional diagnostics for continuity, programme vitality, and market alignment.",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +126,22 @@ if active is not None:
             st.rerun()
 
     try:
-        render_decision_dashboard(active)
+        integrated = active.integrated or {}
+        confidence = active.confidence or {}
+
+        dashboard_payload = {
+            "state": integrated.get("state"),
+            "score": integrated.get("score"),
+            "confidence": confidence.get("label") or confidence.get("composite_score"),
+            "framework_scores": {
+                "ICG": (active.icg or {}).get("score"),
+                "DMM": (active.dmm or {}).get("score"),
+                "GPIS": (active.gpis or {}).get("score"),
+            },
+            "decision_summary": integrated.get("override_reason"),
+        }
+
+        render_decision_dashboard(dashboard_payload)
     except Exception as e:
         st.warning(f"Dashboard could not be rendered: {e}")
 
@@ -146,13 +164,21 @@ if active is not None:
         )
         rb1, rb2, rb3 = st.columns(3)
         with rb1:
-            if st.button("▶ Run Internal", use_container_width=True,
-                         disabled=active.has_internal(), key="home_run_internal"):
+            if st.button(
+                "▶ Run Internal",
+                use_container_width=True,
+                disabled=active.has_internal(),
+                key="home_run_internal",
+            ):
                 active.run_internal()
                 st.rerun()
         with rb2:
-            if st.button("▶ Run External", use_container_width=True,
-                         disabled=active.has_external(), key="home_run_external"):
+            if st.button(
+                "▶ Run External",
+                use_container_width=True,
+                disabled=active.has_external(),
+                key="home_run_external",
+            ):
                 active.run_external()
                 st.rerun()
         with rb3:
