@@ -1,4 +1,13 @@
-"""EduPulse — Institutional Health Diagnostics Engine."""
-from .config import APP_NAME, APP_TAGLINE, LOGIC_VERSION, TEMPLATE_VERSION
+"""EduPulse scoring engines — ICG, DMM, GPIS."""
+try:
+    from .icg import score_icg
+    from .dmm import score_dmm
+    from .gpis import score_gpis
+    from .edupulse import integrate_edupulse
+except ImportError:
+    from icg import score_icg
+    from dmm import score_dmm
+    from gpis import score_gpis
+    from edupulse import integrate_edupulse
 
-__all__ = ["APP_NAME", "APP_TAGLINE", "LOGIC_VERSION", "TEMPLATE_VERSION"]
+__all__ = ["score_icg", "score_dmm", "score_gpis", "integrate_edupulse"]
