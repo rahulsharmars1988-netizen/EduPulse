@@ -6,7 +6,11 @@ v1.2.1 — proportional penalties + score ceilings, override caps only.
 from __future__ import annotations
 
 from typing import Dict, Any
-from ..config import EDUPULSE_WEIGHTS, EDUPULSE_THRESHOLDS
+
+try:
+    from ..config import EDUPULSE_WEIGHTS, EDUPULSE_THRESHOLDS
+except ImportError:
+    from config import EDUPULSE_WEIGHTS, EDUPULSE_THRESHOLDS
 
 
 CRITICAL_ICG = 30.0
