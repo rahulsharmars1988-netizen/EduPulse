@@ -542,11 +542,6 @@ def render_top_decision_cards(
     )
 
     lowest_name, lowest_score = _pick_lowest_framework(fs)
-    imbalance_text = (
-        f"{lowest_name} is the lowest-scoring framework at {_fmt_num(lowest_score)}"
-        if lowest_name is not None
-        else "No framework imbalance detected"
-    )
 
     c1, c2, c3 = st.columns(3)
 
@@ -594,7 +589,7 @@ def render_top_decision_cards(
             f"""
             <div class="ep-callout warn">
                 <strong>Imbalance Highlight</strong>
-                <p>{imbalance_text}. This is the main drag on overall decision posture and should be reviewed before broad improvement claims are made.</p>
+                <p>{lowest_name} is the lowest-scoring framework at {_fmt_num(lowest_score)}. This is the main drag on overall decision posture and should be reviewed before broad improvement claims are made.</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -647,17 +642,6 @@ def render_decision_snapshot(
 
 
 def render_decision_dashboard(result: Dict[str, Any]) -> None:
-    """
-    Backward-compatible decision dashboard.
-
-    Accepts flexible keys:
-    - state / integrated_state / overall_state
-    - score / integrated_score / overall_score
-    - confidence / confidence_score / evidence_confidence
-    - framework_scores / framework_breakdown / scores_by_framework
-
-    This function only improves presentation and does not change logic.
-    """
     if not isinstance(result, dict):
         callout(
             "Decision dashboard unavailable",
