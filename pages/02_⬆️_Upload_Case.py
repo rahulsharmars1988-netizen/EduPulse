@@ -94,7 +94,22 @@ st.caption(
 )
 
 try:
-    render_decision_dashboard(ws)
+    integrated = ws.integrated or {}
+    confidence = ws.confidence or {}
+
+    dashboard_payload = {
+        "state": integrated.get("state"),
+        "score": integrated.get("score"),
+        "confidence": confidence.get("label") or confidence.get("composite_score"),
+        "framework_scores": {
+            "ICG": (ws.icg or {}).get("score"),
+            "DMM": (ws.dmm or {}).get("score"),
+            "GPIS": (ws.gpis or {}).get("score"),
+        },
+        "decision_summary": integrated.get("override_reason"),
+    }
+
+    render_decision_dashboard(dashboard_payload)
 except Exception as e:
     st.warning(f"Dashboard could not be rendered: {e}")
 
