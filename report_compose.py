@@ -1,9 +1,14 @@
 """
 Report composition.
 
-v1.2.3 — intelligence layer upgrade: pattern-based balance insight,
-rebuilt strategic insights, priority focus, enriched risk highlights,
-framework-aware timeline projection.
+v1.3.0 — interpretation engine upgrade:
+- preserves v1.2.3 intelligence layer
+- adds deeper root-cause logic
+- adds strategic meaning
+- adds consequence outlook
+- adds priority sequencing
+- adds institutional pattern tagging
+- keeps existing report structure compatible
 """
 from __future__ import annotations
 
@@ -40,13 +45,13 @@ def _fw_state(res: dict, mode: str) -> str:
 def _top_strengths_from_dmm(dmm) -> List[str]:
     if not dmm or not dmm.get("available"):
         return []
-    return [f"{name} ({val:.0f}/100)" for name, val in dmm["strongest"][:3]]
+    return [f"{name} ({val:.0f}/100)" for name, val in dmm.get("strongest", [])[:3]]
 
 
 def _top_weaknesses_from_dmm(dmm) -> List[str]:
     if not dmm or not dmm.get("available"):
         return []
-    return [f"{name} ({val:.0f}/100)" for name, val in dmm["weakest"][:3]]
+    return [f"{name} ({val:.0f}/100)" for name, val in dmm.get("weakest", [])[:3]]
 
 
 STATUS_LINES = {
@@ -59,6 +64,9 @@ STATUS_LINES = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Base interpretation helpers
+# ---------------------------------------------------------------------------
 def _framework_scores(case) -> Dict[str, float]:
     out: Dict[str, float] = {}
     for name, res in [("ICG", case.icg), ("DMM", case.dmm), ("GPIS", case.gpis)]:
@@ -72,11 +80,35 @@ def _critical_frameworks(case) -> List[str]:
     out = []
     for name, res in [("ICG", case.icg), ("DMM", case.dmm), ("GPIS", case.gpis)]:
         if res and res.get("available") and res.get("score") is not None:
-            if res["score"] < thresholds[name]:
+            if float(res["score"]) < thresholds[name]:
                 out.append(name)
     return out
 
 
+def _framework_spread(case) -> float:
+    scores = _framework_scores(case)
+    if len(scores) < 2:
+        return 0.0
+    return max(scores.values()) - min(scores.values())
+
+
+def _weakest_framework(case) -> str | None:
+    scores = _framework_scores(case)
+    if not scores:
+        return None
+    return min(scores, key=scores.get)
+
+
+def _strongest_framework(case) -> str | None:
+    scores = _framework_scores(case)
+    if not scores:
+        return None
+    return max(scores, key=scores.get)
+
+
+# ---------------------------------------------------------------------------
+# Interpretation engine — public data builders
+# ---------------------------------------------------------------------------
 def build_system_snapshot(case) -> Dict[str, Any]:
     integ = case.integrated or {}
     state = integ.get("state") or "—"
@@ -97,6 +129,7 @@ def build_balance_analysis(case) -> Dict[str, Any]:
         return {
             "strongest_framework": None,
             "weakest_framework": None,
+            "spread": 0.0,
             "insight": "Insufficient framework data for balance analysis.",
         }
     if len(scores) == 1:
@@ -104,6 +137,7 @@ def build_balance_analysis(case) -> Dict[str, Any]:
         return {
             "strongest_framework": only,
             "weakest_framework": only,
+            "spread": 0.0,
             "insight": f"Only {only} produced a usable score; a balance view is not available.",
         }
 
@@ -116,9 +150,13 @@ def build_balance_analysis(case) -> Dict[str, Any]:
     elif strongest == "GPIS" and weakest == "ICG":
         insight = "High performance outcomes exist, but governance weakness creates scale risk."
     elif strongest == "ICG" and weakest == "DMM":
-        insight = "Strong institutional control present, but digital capability gaps may limit efficiency and scalability."
+        insight = "Strong institutional control is present, but digital capability gaps may limit efficiency and scalability."
     elif strongest == "DMM" and weakest == "GPIS":
         insight = "Digital maturity is strong, but outcomes are not translating into performance impact."
+    elif strongest == "ICG" and weakest == "GPIS":
+        insight = "Institutional stability exists, but external relevance is not fully converting into market-aligned outcomes."
+    elif strongest == "GPIS" and weakest == "DMM":
+        insight = "Demand alignment is strong, but programme vitality may weaken the institution's ability to sustain advantage."
     elif spread > 25:
         insight = "Significant imbalance detected across frameworks, indicating uneven institutional development."
     else:
@@ -127,7 +165,134 @@ def build_balance_analysis(case) -> Dict[str, Any]:
     return {
         "strongest_framework": strongest,
         "weakest_framework": weakest,
+        "spread": round(spread, 1),
         "insight": insight,
+    }
+
+
+def build_root_cause_summary(case) -> Dict[str, Any]:
+    scores = _framework_scores(case)
+    weakest = _weakest_framework(case)
+    reasons: List[str] = []
+
+    icg = case.icg or {}
+    dmm = case.dmm or {}
+    gpis = case.gpis or {}
+
+    if weakest == "ICG" and icg.get("available"):
+        pct_sole = float(icg.get("pct_sole_no_backup", 0) or 0)
+        pct_retire = float(icg.get("pct_retire_soon", 0) or 0)
+        non_perm_hd = int(icg.get("non_permanent_high_demand_count", 0) or 0)
+        high_risk = int(icg.get("high_risk_count", 0) or 0)
+
+        if pct_sole >= 10:
+            reasons.append("continuity risk is elevated by sole-expert roles without declared backup")
+        if pct_retire >= 15:
+            reasons.append("succession exposure is rising due to faculty nearing retirement")
+        if non_perm_hd > 0:
+            reasons.append("attrition exposure exists in high-demand non-permanent roles")
+        if high_risk > 0 and not reasons:
+            reasons.append("faculty-risk concentration is materially shaping the continuity position")
+
+    if weakest == "DMM" and dmm.get("available"):
+        weakest_levers = [name for name, _ in dmm.get("weakest", [])[:3]]
+        if weakest_levers:
+            reasons.append(
+                f"programme vitality is constrained by weaker levers in {', '.join(weakest_levers)}"
+            )
+        crit = dmm.get("critical_programmes")
+        if crit is not None and not crit.empty:
+            reasons.append("one or more programmes are in a static or catabolic state")
+
+    if weakest == "GPIS" and gpis.get("available"):
+        dist_df = gpis.get("state_distribution")
+        if dist_df is not None and not dist_df.empty:
+            try:
+                dist = dist_df.set_index("State")["Seat %"].to_dict()
+            except Exception:
+                dist = {}
+            if dist.get("Mismatch", 0) >= 10:
+                reasons.append("a meaningful share of seats sit in low- or no-demand areas")
+            if dist.get("Oversupply", 0) >= 15:
+                reasons.append("capacity is running ahead of visible demand in parts of the portfolio")
+            if dist.get("Weak Alignment", 0) >= 15:
+                reasons.append("market conversion is weaker than the institution's portfolio mix suggests")
+
+    if not reasons and weakest and weakest in scores:
+        reasons.append(f"the current state is primarily constrained by the weakest framework: {weakest}")
+
+    summary = "Root cause is not clear from the available evidence."
+    if reasons:
+        summary = "The current state is being driven primarily because " + "; ".join(reasons) + "."
+
+    return {
+        "weakest_framework": weakest,
+        "reasons": reasons,
+        "summary": summary,
+    }
+
+
+def build_strategic_meaning(case) -> Dict[str, Any]:
+    scores = _framework_scores(case)
+    icg = scores.get("ICG")
+    dmm = scores.get("DMM")
+    gpis = scores.get("GPIS")
+
+    meaning = "The current reading does not yet point to a strong strategic interpretation."
+    tag = "unclear pattern"
+
+    if gpis is not None and gpis > 70 and dmm is not None and dmm > 70 and icg is not None and icg < 40:
+        tag = "growth without structural depth"
+        meaning = (
+            "The institution appears to be performing well in programme vitality and market alignment, "
+            "but the internal continuity layer is not strong enough to protect or sustain that performance."
+        )
+    elif icg is not None and icg > 70 and dmm is not None and dmm < 50:
+        tag = "stable but under-leveraged"
+        meaning = (
+            "The institution has a stable internal base, but its programmes are not converting that stability "
+            "into stronger vitality, value, or learner-facing momentum."
+        )
+    elif dmm is not None and dmm > 70 and gpis is not None and gpis < 50:
+        tag = "digitally ready but externally constrained"
+        meaning = (
+            "Programme and delivery strength are present, but these are not yet translating into strong external "
+            "alignment with demand."
+        )
+    elif icg is not None and icg > 70 and gpis is not None and gpis > 70 and dmm is not None and dmm < 60:
+        tag = "sound but programme-constrained"
+        meaning = (
+            "Institutional stability and market relevance are present, but programme vitality is not yet strong enough "
+            "to convert those advantages into full institutional momentum."
+        )
+    elif _framework_spread(case) <= 10 and len(scores) == 3:
+        tag = "balanced system"
+        meaning = (
+            "The institution is operating with a relatively balanced profile across the three dimensions, "
+            "suggesting that no single layer is materially distorting the whole-system position."
+        )
+    elif _weakest_framework(case) == "ICG":
+        tag = "internally fragile"
+        meaning = (
+            "The institution's external-facing strengths may be real, but they are being carried by a continuity layer "
+            "that is too weak for comfortable scale or resilience."
+        )
+    elif _weakest_framework(case) == "DMM":
+        tag = "programme-constrained"
+        meaning = (
+            "The institution's next gains are likely to depend on strengthening programme vitality rather than expanding "
+            "capacity or relying on existing structural stability."
+        )
+    elif _weakest_framework(case) == "GPIS":
+        tag = "market-constrained"
+        meaning = (
+            "The institution may be internally capable, but its portfolio is not yet converting enough of that capability "
+            "into strong external alignment."
+        )
+
+    return {
+        "institutional_pattern": tag,
+        "strategic_meaning": meaning,
     }
 
 
@@ -152,6 +317,14 @@ def build_strategic_insights(case) -> List[str]:
         insights.append("Strong control systems exist, but they are not translating into measurable performance outcomes.")
     if dmm is not None and dmm > 70:
         insights.append("Digital infrastructure provides a foundation for scalability and process optimization.")
+    if _framework_spread(case) > 25:
+        insights.append("The institution is developing unevenly across layers, which increases the chance that one strong area may mask a deeper weakness.")
+    if _weakest_framework(case) == "ICG":
+        insights.append("Current performance may be more fragile than it appears because continuity risk sits below the surface of otherwise positive signals.")
+    if _weakest_framework(case) == "DMM":
+        insights.append("The institution's strategic constraint is less about structure and more about the quality and vitality of programme execution.")
+    if _weakest_framework(case) == "GPIS":
+        insights.append("Operational strength may not translate into advantage unless portfolio choices track demand more tightly.")
 
     seen, out = set(), []
     for s in insights:
@@ -175,6 +348,43 @@ def build_priority_focus(case) -> str:
     if weakest == "GPIS":
         return "Improve performance execution and outcome delivery"
     return "Optimize and scale current institutional strengths"
+
+
+def build_priority_sequence(case) -> Dict[str, List[str] | str]:
+    weakest = _weakest_framework(case)
+    sequence: List[str] = []
+
+    if weakest == "ICG":
+        sequence = [
+            "First: stabilise continuity risk through backup coverage, succession planning, and role protection.",
+            "Second: tighten governance and oversight so performance is not dependent on fragile individuals or informal continuity.",
+            "Third: scale growth initiatives only after the continuity layer is strong enough to support them.",
+        ]
+    elif weakest == "DMM":
+        sequence = [
+            "First: improve the weakest programme vitality levers before attempting broader expansion.",
+            "Second: align programme design, delivery, and value perception to strengthen execution quality.",
+            "Third: scale successful programme models once vitality improves consistently.",
+        ]
+    elif weakest == "GPIS":
+        sequence = [
+            "First: correct the weakest market-alignment exposures in demand-poor or mismatched rows.",
+            "Second: rebalance capacity and portfolio positioning toward stronger-demand areas.",
+            "Third: expand only after the institution's external alignment is visibly stronger.",
+        ]
+    else:
+        sequence = [
+            "First: validate the reading with a fresh cycle of evidence.",
+            "Second: address the weakest visible layer.",
+            "Third: scale only after the weakest layer improves.",
+        ]
+
+    return {
+        "first_priority": sequence[0],
+        "second_priority": sequence[1],
+        "third_priority": sequence[2],
+        "sequence": sequence,
+    }
 
 
 def build_risk_highlights(case) -> List[str]:
@@ -202,6 +412,42 @@ def build_risk_highlights(case) -> List[str]:
             seen.add(r)
             out.append(r)
     return out[:3]
+
+
+def build_consequence_outlook(case) -> Dict[str, Any]:
+    weakest = _weakest_framework(case)
+    state = (case.integrated or {}).get("state") or "—"
+
+    if weakest == "ICG":
+        text = (
+            "If continuity risk is not addressed, the institution may sustain visible performance for a period, "
+            "but become more exposed to disruption during faculty exits, retirements, or role transitions."
+        )
+    elif weakest == "DMM":
+        text = (
+            "If programme vitality is not improved, the institution may remain operationally stable while gradually "
+            "losing momentum in programme attractiveness, learner experience, and perceived value."
+        )
+    elif weakest == "GPIS":
+        text = (
+            "If alignment issues are not corrected, the institution may continue operating capably but with rising risk "
+            "of capacity sitting in weaker-demand areas and weaker external conversion."
+        )
+    elif state in ("Fragile", "Critical"):
+        text = (
+            "If the current condition is not addressed, multi-dimensional weakness may become harder to reverse and "
+            "require a longer recovery cycle."
+        )
+    else:
+        text = (
+            "If current weaknesses are not addressed, the institution may still operate, but its ability to improve "
+            "or scale confidently is likely to weaken over time."
+        )
+
+    return {
+        "weakest_framework": weakest,
+        "consequence_outlook": text,
+    }
 
 
 def build_timeline_projection(case) -> Dict[str, str]:
@@ -307,7 +553,13 @@ def _action_priority(icg, dmm, gpis) -> Dict[str, List[str]]:
                 immediate.append("DMM: audit programme outcomes against realistic job-role taxonomy.")
 
     if gpis and gpis.get("available"):
-        dist = gpis["state_distribution"].set_index("State")["Seat %"].to_dict()
+        dist_df = gpis.get("state_distribution")
+        dist = {}
+        if dist_df is not None and not dist_df.empty:
+            try:
+                dist = dist_df.set_index("State")["Seat %"].to_dict()
+            except Exception:
+                dist = {}
         if dist.get("Mismatch", 0) >= 10:
             immediate.append("GPIS: re-examine mismatch rows — reposition, shift geography, or sunset.")
         if dist.get("Oversupply", 0) >= 15:
@@ -348,6 +600,8 @@ def _block_balance_analysis(case) -> ReportBlock:
         bullets.append(f"Strongest framework: <b>{bal['strongest_framework']}</b>")
     if bal["weakest_framework"] and bal["weakest_framework"] != bal["strongest_framework"]:
         bullets.append(f"Weakest framework: <b>{bal['weakest_framework']}</b>")
+    if bal.get("spread") is not None:
+        bullets.append(f"Framework spread: <b>{bal['spread']}</b> points.")
 
     integ = case.integrated or {}
     for fw, delta in integ.get("pulls_up", []):
@@ -365,20 +619,69 @@ def _block_balance_analysis(case) -> ReportBlock:
     )
 
 
+def _block_root_cause_summary(case) -> ReportBlock:
+    rc = build_root_cause_summary(case)
+    return ReportBlock(
+        block_id="root_cause_summary",
+        title="Root Cause Summary",
+        visibility=BOTH,
+        paragraphs=[rc["summary"]],
+        bullets=[r.capitalize() for r in rc.get("reasons", [])] or ["Root-cause evidence is limited in the current case."],
+        meta=rc,
+    )
+
+
 def _block_strategic_insights(case) -> ReportBlock:
     insights = build_strategic_insights(case)
     priority = build_priority_focus(case)
+    sm = build_strategic_meaning(case)
     return ReportBlock(
         block_id="strategic_insights",
         title="Strategic Insights",
         visibility=BOTH,
         paragraphs=[
             "Insights translate the framework readings into strategic meaning rather than "
-            "repeating the scores. They answer: what does this reading actually imply for decisions?"
+            "repeating the scores. They answer: what does this reading actually imply for decisions?",
+            sm["strategic_meaning"],
         ],
         bullets=insights or ["No material strategic insights surface from the current reading."],
-        callouts=[f"Priority focus: {priority}"],
-        meta={"insights": insights, "priority_focus": priority},
+        callouts=[
+            f"Priority focus: {priority}",
+            f"Institutional pattern: {sm['institutional_pattern']}",
+        ],
+        meta={"insights": insights, "priority_focus": priority, **sm},
+    )
+
+
+def _block_consequence_outlook(case) -> ReportBlock:
+    co = build_consequence_outlook(case)
+    return ReportBlock(
+        block_id="consequence_outlook",
+        title="Consequence Outlook",
+        visibility=BOTH,
+        paragraphs=[
+            "This section explains what is likely to happen if the current weakness is not addressed.",
+            co["consequence_outlook"],
+        ],
+        meta=co,
+    )
+
+
+def _block_priority_sequence(case) -> ReportBlock:
+    seq = build_priority_sequence(case)
+    return ReportBlock(
+        block_id="priority_sequence",
+        title="Priority Sequence",
+        visibility=INTERNAL_ONLY,
+        paragraphs=[
+            "Not all actions should be executed at once. This sequence explains what should be addressed first, then next, and why."
+        ],
+        labeled_bullets=[
+            ("First", seq["first_priority"]),
+            ("Second", seq["second_priority"]),
+            ("Third", seq["third_priority"]),
+        ],
+        meta=seq,
     )
 
 
@@ -422,10 +725,10 @@ def _block_timeline_projection(case) -> ReportBlock:
 
 
 # ---------------------------------------------------------------------------
-# Existing internal blocks (unchanged)
+# Existing internal blocks
 # ---------------------------------------------------------------------------
 def _block_diagnostic_summary(case) -> ReportBlock:
-    integ = case.integrated
+    integ = case.integrated or {}
     state = soften_label(integ.get("state") or "—", MODE_INTERNAL)
     score = integ.get("score")
     conf = case.confidence or {}
@@ -481,20 +784,28 @@ def _block_pressure_map(case) -> ReportBlock:
 
 def _block_causal_findings(case) -> ReportBlock:
     bullets = []
-    icg = case.icg
-    if icg and icg.get("available"):
+    icg = case.icg or {}
+    if icg.get("available"):
         for d in icg.get("key_drivers", []):
             bullets.append(f"[ICG] {d}")
-    dmm = case.dmm
-    if dmm and dmm.get("available"):
+
+    dmm = case.dmm or {}
+    if dmm.get("available"):
         for name, val in dmm.get("weakest", [])[:3]:
             bullets.append(f"[DMM] Weakest vitality lever: {name} ({val:.0f}/100).")
         for name, val in dmm.get("strongest", [])[:1]:
             bullets.append(f"[DMM] Strongest vitality lever: {name} ({val:.0f}/100).")
-    gpis = case.gpis
-    if gpis and gpis.get("available"):
+
+    gpis = case.gpis or {}
+    if gpis.get("available"):
         for d in gpis.get("key_drivers", []):
             bullets.append(f"[GPIS] {d}")
+
+    rc = build_root_cause_summary(case)
+    if rc.get("reasons"):
+        for reason in rc["reasons"][:3]:
+            bullets.append(f"[INTERPRETATION] {reason.capitalize()}.")
+
     return ReportBlock(
         block_id="causal_findings",
         title="Causal Findings",
@@ -510,8 +821,9 @@ def _block_causal_findings(case) -> ReportBlock:
 def _block_sensitive_risks(case) -> ReportBlock:
     bullets = []
     tables = []
-    icg = case.icg
-    if icg and icg.get("available"):
+
+    icg = case.icg or {}
+    if icg.get("available"):
         flagged = icg.get("flagged_faculty")
         if flagged is not None and not flagged.empty:
             rows = flagged.head(8)[["Department", "Faculty Name", "Risk Level",
@@ -538,14 +850,16 @@ def _block_sensitive_risks(case) -> ReportBlock:
                 bullets.append(
                     f"{hottest['Department']}: {hottest['High_Risk_%']:.0f}% of its faculty are high-risk."
                 )
-    dmm = case.dmm
-    if dmm and dmm.get("available"):
+
+    dmm = case.dmm or {}
+    if dmm.get("available"):
         crit = dmm.get("critical_programmes")
         if crit is not None and not crit.empty:
             names = crit["Programme Name"].tolist()
             bullets.append(
                 f"Programmes in Static or Catabolic state: {', '.join(names)}."
             )
+
     return ReportBlock(
         block_id="sensitive_risks",
         title="Sensitive Risk Exposures",
@@ -560,8 +874,8 @@ def _block_sensitive_risks(case) -> ReportBlock:
 
 
 def _block_anti_gaming(case) -> ReportBlock:
-    dmm = case.dmm
-    flags = dmm.get("anti_gaming_flags", []) if dmm and dmm.get("available") else []
+    dmm = case.dmm or {}
+    flags = dmm.get("anti_gaming_flags", []) if dmm.get("available") else []
     rows = []
     for f in flags:
         rows.append([
@@ -601,8 +915,8 @@ def _block_action_matrix(case) -> ReportBlock:
     pri = _action_priority(case.icg, case.dmm, case.gpis)
     rows = []
     for label, items in [("Immediate", pri["immediate"]),
-                          ("Near-Term", pri["near_term"]),
-                          ("Monitor", pri["monitor"])]:
+                         ("Near-Term", pri["near_term"]),
+                         ("Monitor", pri["monitor"])]:
         for item in items:
             rows.append([label, item])
     table = ReportTable(
@@ -662,9 +976,11 @@ def _block_traceability(case) -> ReportBlock:
         bullets.append(f"Penalty total applied: {integ['penalty_total']}")
     if integ.get("override_reason"):
         bullets.append(f"Override note: {integ['override_reason']}")
+
     conf_rows = []
     for dim, obj in (case.confidence or {}).get("dimensions", {}).items():
         conf_rows.append([dim.replace("_", " ").title(), f"{obj['score']:.1f}", obj["note"]])
+
     tables = []
     if conf_rows:
         tables.append(ReportTable(
@@ -696,24 +1012,27 @@ def _block_traceability(case) -> ReportBlock:
 
 
 # ---------------------------------------------------------------------------
-# Existing external blocks (unchanged)
+# Existing external blocks
 # ---------------------------------------------------------------------------
 def _block_executive_summary(case) -> ReportBlock:
-    integ = case.integrated
+    integ = case.integrated or {}
     state = soften_label(integ.get("state") or "—", MODE_EXTERNAL)
-    score = integ.get("score")
+
     strengths = []
     watches = []
+
     if case.icg and case.icg.get("available"):
         if case.icg["state"] in ("Resilient", "Stable"):
             strengths.append("faculty continuity is holding up")
         else:
             watches.append("faculty continuity is under pressure")
+
     if case.dmm and case.dmm.get("available"):
         if case.dmm["state"] in ("Anabolic", "Transitional"):
             strengths.append("programme vitality is broadly positive")
         else:
             watches.append("programme vitality needs renewal")
+
     if case.gpis and case.gpis.get("available"):
         if case.gpis["state"] in ("Strong Alignment", "Approximate Alignment", "Undersupply"):
             strengths.append("supply is aligned with demand")
@@ -772,12 +1091,18 @@ def _block_strategic_strengths(case) -> ReportBlock:
     for s in _top_strengths_from_dmm(case.dmm)[:2]:
         bullets.append(f"Programme vitality is led by: {s}.")
     if case.gpis and case.gpis.get("available"):
-        dist = case.gpis["state_distribution"].set_index("State")["Seat %"].to_dict()
+        dist_df = case.gpis.get("state_distribution")
+        dist = {}
+        if dist_df is not None and not dist_df.empty:
+            try:
+                dist = dist_df.set_index("State")["Seat %"].to_dict()
+            except Exception:
+                dist = {}
         good = dist.get("Strong Alignment", 0) + dist.get("Approximate Alignment", 0)
         if good >= 50:
             bullets.append(f"{good:.0f}% of seats sit in well-aligned domain-geography pairs.")
         if dist.get("Undersupply", 0) > 0:
-            bullets.append(f"Strong-demand areas at or above capacity — clear growth headroom.")
+            bullets.append("Strong-demand areas at or above capacity — clear growth headroom.")
     if not bullets:
         bullets.append("Institution maintains baseline operational strength across the three dimensions.")
     return ReportBlock(
@@ -799,7 +1124,13 @@ def _block_watch_areas(case) -> ReportBlock:
     for s in _top_weaknesses_from_dmm(case.dmm)[:2]:
         bullets.append(f"Programme vitality lags on: {s.split(' (')[0]}.")
     if case.gpis and case.gpis.get("available"):
-        dist = case.gpis["state_distribution"].set_index("State")["Seat %"].to_dict()
+        dist_df = case.gpis.get("state_distribution")
+        dist = {}
+        if dist_df is not None and not dist_df.empty:
+            try:
+                dist = dist_df.set_index("State")["Seat %"].to_dict()
+            except Exception:
+                dist = {}
         if dist.get("Mismatch", 0) >= 10:
             bullets.append(f"{dist['Mismatch']:.0f}% of seats sit in low- or no-demand areas.")
         if dist.get("Oversupply", 0) >= 15:
@@ -843,17 +1174,23 @@ def _block_improvement_priorities(case) -> ReportBlock:
 
 
 def _block_forward_outlook(case) -> ReportBlock:
-    integ = case.integrated
+    integ = case.integrated or {}
     state = soften_label(integ.get("state") or "—", MODE_EXTERNAL)
     if state in ("Thriving", "Healthy"):
-        outlook = ("The forward outlook is positive. If current practices are maintained, "
-                   "the institution should continue to consolidate its position.")
+        outlook = (
+            "The forward outlook is positive. If current practices are maintained, "
+            "the institution should continue to consolidate its position."
+        )
     elif state in ("Stretched", "At Risk", "Fragile"):
-        outlook = ("The forward outlook is mixed. Acting on the priorities above "
-                   "is expected to shift the position upward within the next diagnostic cycle.")
+        outlook = (
+            "The forward outlook is mixed. Acting on the priorities above "
+            "is expected to shift the position upward within the next diagnostic cycle."
+        )
     else:
-        outlook = ("The forward outlook requires deliberate action. The priorities above "
-                   "define the route back to a healthier position.")
+        outlook = (
+            "The forward outlook requires deliberate action. The priorities above "
+            "define the route back to a healthier position."
+        )
     return ReportBlock(
         block_id="forward_outlook",
         title="Forward Outlook",
@@ -870,9 +1207,12 @@ def compose_internal_blocks(case) -> List[ReportBlock]:
         _block_system_snapshot(case),
         _block_diagnostic_summary(case),
         _block_balance_analysis(case),
+        _block_root_cause_summary(case),
         _block_pressure_map(case),
         _block_strategic_insights(case),
         _block_causal_findings(case),
+        _block_consequence_outlook(case),
+        _block_priority_sequence(case),
         _block_risk_highlights(case),
         _block_sensitive_risks(case),
         _block_anti_gaming(case),
@@ -889,8 +1229,10 @@ def compose_external_blocks(case) -> List[ReportBlock]:
         _block_executive_summary(case),
         _block_health_position(case),
         _block_balance_analysis(case),
+        _block_root_cause_summary(case),
         _block_strategic_strengths(case),
         _block_strategic_insights(case),
+        _block_consequence_outlook(case),
         _block_watch_areas(case),
         _block_improvement_priorities(case),
         _block_timeline_projection(case),
