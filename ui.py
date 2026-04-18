@@ -6,7 +6,7 @@ import streamlit as st
 
 
 # =========================================================
-# CORE THEME / CSS
+# CORE CSS
 # =========================================================
 
 def inject_css() -> None:
@@ -114,7 +114,7 @@ def _confidence_label(score: Any) -> str:
 
 
 # =========================================================
-# HERO (UPDATED WITH BRANDING)
+# HERO (CONTROLLED BRANDING)
 # =========================================================
 
 def hero(
@@ -122,25 +122,29 @@ def hero(
     subtitle: Optional[str] = None,
     eyebrow: str = "EduPulse",
     *,
+    show_author: bool = False,
     owner: str = "Rahul Sharma",
     email: str = "rahulsharma.rs1988@gmail.com",
     linkedin: str = "https://www.linkedin.com/in/rahulsharma",
 ) -> None:
 
+    author_block = ""
+    if show_author:
+        author_block = f"""
+        <div class="ep-author">
+            Created by <strong>{owner}</strong> |
+            <a href="mailto:{email}">{email}</a> |
+            <a href="{linkedin}" target="_blank">LinkedIn</a>
+        </div>
+        """
+
     st.markdown(
         f"""
         <div class="ep-hero">
             <div class="ep-eyebrow">{eyebrow}</div>
-
             <h1>{title}</h1>
-
             <p>{subtitle or "Decision Intelligence System"}</p>
-
-            <div class="ep-author">
-                Created by <strong>{owner}</strong> |
-                <a href="mailto:{email}">{email}</a> |
-                <a href="{linkedin}" target="_blank">LinkedIn</a>
-            </div>
+            {author_block}
         </div>
         """,
         unsafe_allow_html=True,
@@ -148,7 +152,7 @@ def hero(
 
 
 # =========================================================
-# BASIC BLOCKS
+# BASIC UI BLOCKS
 # =========================================================
 
 def section_title(title: str, subtitle: Optional[str] = None) -> None:
@@ -166,7 +170,7 @@ def callout(title: str, body: str) -> None:
 
 
 # =========================================================
-# DECISION DASHBOARD
+# DECISION DASHBOARD (UNCHANGED LOGIC)
 # =========================================================
 
 def render_decision_dashboard(result: Dict[str, Any]) -> None:
@@ -194,7 +198,7 @@ def render_decision_dashboard(result: Dict[str, Any]) -> None:
 
 
 # =========================================================
-# FOOTER (UPDATED)
+# FOOTER (FULL BRANDING)
 # =========================================================
 
 def footer(
