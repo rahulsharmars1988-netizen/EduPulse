@@ -1,198 +1,178 @@
+"""
+EduPulse — Streamlit entrypoint (Home).
+
+Run:
+    streamlit run app.py
+"""
+import pandas as pd
 import streamlit as st
-from case import build_workspace
-from ui import inject_css, hero, footer
 
-# Optional imports with safe fallback
-try:
-    from report import render_internal_pdf, render_external_pdf
-except Exception:
-    render_internal_pdf = None
-    render_external_pdf = None
-
-try:
-    from branding import BrandingSettings
-except Exception:
-    BrandingSettings = None
-
-try:
-    from template import build_template
-except Exception:
-    build_template = None
+from config import APP_NAME, APP_TAGLINE
+from ui import (
+    hero,
+    inject_css,
+    footer,
+    section_title,
+    divider,
+    callout,
+    render_decision_dashboard,
+)
+import storage
 
 
-def render_report_ui(report):
-    for block in report.blocks:
-        st.markdown(f"## {block.title}")
+st.set_page_config(
+    page_title=f"{APP_NAME} — {APP_TAGLINE}",
+    page_icon="🩺",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+inject_css()
 
-        if block.headline:
-            st.markdown(block.headline, unsafe_allow_html=True)
+# Warm session
+storage.all_workspaces()
 
-        for p in block.paragraphs:
-            st.markdown(p, unsafe_allow_html=True)
-
-        for c in block.callouts:
-            st.info(c)
-
-        for b in block.bullets:
-            st.markdown(f"- {b}")
-
-        if block.labeled_bullets:
-            current = None
-            for label, text in block.labeled_bullets:
-                if label != current:
-                    current = label
-                    st.markdown(f"### {label}")
-                st.markdown(f"- {text}")
-
-        for table in block.tables:
-            st.markdown(f"### {table.title}")
-            try:
-                import pandas as pd
-                df = pd.DataFrame(table.rows, columns=table.columns)
-                st.dataframe(df, width="stretch")
-            except Exception:
-                st.table(table.rows)
+hero()
 
 
-def get_branding():
-    if BrandingSettings is None:
-        return None
+# ---------------------------------------------------------------------------
+# Product intro
+# ---------------------------------------------------------------------------
+col1, col2 = st.columns([1.3, 1])
+with col1:
+    st.subheader("What EduPulse is")
+    st.write(
+        "EduPulse is a **multi-layer institutional health diagnostics engine**. "
+        "It evaluates your institution across three deterministic frameworks:"
+    )
+    st.markdown(
+        "- **ICG — Institutional Continuity / Faculty System**  \n"
+        "  Continuity, dependency, succession, and attrition exposure.\n"
+        "- **DMM — Programme Vitality / Outcome System**  \n"
+        "  Alignment, adaptation, value, degree–job fit, contribution, teaching effectiveness.\n"
+        "- **GPIS — Geo-Pedagogical / Market Alignment System**  \n"
+        "  Supply–demand fit across domain × geography."
+    )
+    st.caption(
+        "EduPulse is **not** a ranking system, a compliance dashboard, or a data warehouse. "
+        "It is a self-assessment and improvement layer."
+    )
 
-    return BrandingSettings(
-        authorized_signature_name="Rahul Sharma",
-        designation="Manager – IQAC",
-        institution_name="DBS Global University",
-        copyright_owner_name="Rahul Sharma",
+with col2:
+    st.subheader("How it works")
+    st.markdown(
+        "1. **Download** the official EduPulse template.\n"
+        "2. **Fill** the four input sheets using the dropdowns.\n"
+        "3. **Upload** the same workbook back.\n"
+        "4. **Run** Internal, External, or Both reports from the same upload.\n"
+        "5. **Download** the generated PDF(s) with your branding.\n"
+        "6. **Compare** up to 3 cases side-by-side."
+    )
+    st.info("All processing happens in your active session. No data is stored server-side.")
+
+divider()
+
+
+# ---------------------------------------------------------------------------
+# Quick actions
+# ---------------------------------------------------------------------------
+section_title("Quick actions")
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.page_link("pages/1_Download_Template.py", label="📥 Download Template")
+with c2:
+    st.page_link("pages/2_Upload_Case.py", label="⬆️ Upload Case")
+with c3:
+    st.page_link("pages/3_Analysis.py", label="📊 Analysis & Reports")
+with c4:
+    st.page_link("pages/4_Compare_Cases.py", label="🔁 Compare Cases")
+with c5:
+    st.page_link("pages/6_Report_Settings.py", label="⚙️ Report Settings")
+
+
+# ---------------------------------------------------------------------------
+# Active case — decision dashboard
+# ---------------------------------------------------------------------------
+ws_all = storage.all_workspaces()
+
+active = None
+active_name = st.session_state.get("active_workspace_name")
+if active_name:
+    active = storage.get_workspace(active_name)
+if active is None and ws_all:
+    active = ws_all[-1]
+    st.session_state["active_workspace_name"] = active.name
+
+if active is not None:
+    divider()
+    section_title(f"Decision Dashboard — {active.name}")
+    st.caption(
+        f"Source file: {active.original_filename or '—'} · "
+        f"Uploaded {active.uploaded_at} · Workspace ID: {active.workspace_id}"
+    )
+
+    # If more than one case exists, let the user switch active case here
+    if len(ws_all) > 1:
+        names = [w.name for w in ws_all]
+        default_idx = names.index(active.name) if active.name in names else 0
+        picked = st.selectbox("Active case", names, index=default_idx, key="home_active_case_picker")
+        if picked and picked != active.name:
+            st.session_state["active_workspace_name"] = picked
+            st.rerun()
+
+    # Decision dashboard (defensive inside ui.py)
+    try:
+        render_decision_dashboard(active)
+    except Exception as e:
+        st.warning(f"Dashboard could not be rendered: {e}")
+
+    # Deep-dive / downloads
+    divider()
+    section_title("Go deeper")
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        st.page_link("pages/3_Analysis.py", label="🔎 Open full Analysis")
+    with d2:
+        st.page_link("pages/4_Compare_Cases.py", label="🔁 Compare with other cases")
+    with d3:
+        st.page_link("pages/2_Upload_Case.py", label="⬆️ Upload another case")
+
+    # Report generation shortcuts (non-redundant — quick-run from home)
+    if not active.has_internal() or not active.has_external():
+        callout(
+            "Generate reports for this case from the Analysis page, or run them quickly below."
+        )
+        rb1, rb2, rb3 = st.columns(3)
+        with rb1:
+            if st.button("▶ Run Internal", use_container_width=True,
+                         disabled=active.has_internal()):
+                active.run_internal()
+                st.rerun()
+        with rb2:
+            if st.button("▶ Run External", use_container_width=True,
+                         disabled=active.has_external()):
+                active.run_external()
+                st.rerun()
+        with rb3:
+            if st.button("▶ Generate Both", use_container_width=True):
+                active.run_both()
+                st.rerun()
+
+else:
+    divider()
+    callout(
+        "No case loaded yet. Use **Upload Case** to load a filled EduPulse workbook — "
+        "the decision dashboard will appear here automatically."
     )
 
 
-st.set_page_config(page_title="EduPulse", layout="wide")
+# ---------------------------------------------------------------------------
+# Cases in session (summary table — non-redundant with dashboard)
+# ---------------------------------------------------------------------------
+if ws_all:
+    divider()
+    section_title("Cases in this session")
+    df = pd.DataFrame([w.summary_row() for w in ws_all])
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-inject_css()
-hero()
-
-st.title("Upload Case")
-
-# Template download
-if build_template is not None:
-    st.subheader("Download Template")
-    try:
-        template_bytes = build_template()
-        st.download_button(
-            label="Download Excel Template",
-            data=template_bytes,
-            file_name="EduPulse_Template.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-    except Exception as e:
-        st.warning(f"Template generation is not available yet: {e}")
-
-uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
-
-if uploaded_file is not None:
-    file_bytes = uploaded_file.read()
-
-    # rebuild workspace only if new file uploaded
-    current_name = uploaded_file.name
-    if (
-        "ws" not in st.session_state
-        or "ws_filename" not in st.session_state
-        or st.session_state.ws_filename != current_name
-    ):
-        st.session_state.ws = build_workspace(
-            xls_bytes=file_bytes,
-            case_name=uploaded_file.name,
-            original_filename=uploaded_file.name,
-        )
-        st.session_state.ws_filename = current_name
-
-    ws = st.session_state.ws
-
-    if not ws.validation.ok:
-        st.error("Validation Failed")
-        for err in ws.validation.errors:
-            st.write(f"- {err}")
-    else:
-        st.success("Validation Passed")
-
-        st.subheader("Analysis Mode")
-        c1, c2, c3 = st.columns(3)
-
-        run_internal = c1.button("Run Internal Analysis")
-        run_external = c2.button("Run External Analysis")
-        run_both = c3.button("Generate Both")
-
-        st.subheader("Core Result")
-        st.json(ws.integrated)
-        st.json(ws.confidence)
-
-        branding = get_branding()
-
-        if run_internal:
-            report = ws.run_internal()
-            st.subheader("Internal Report")
-            render_report_ui(report)
-
-            if render_internal_pdf is not None:
-                try:
-                    internal_pdf = render_internal_pdf(ws, branding=branding)
-                    st.download_button(
-                        label="Download Internal PDF",
-                        data=internal_pdf,
-                        file_name=f"{ws.name}_internal_report.pdf",
-                        mime="application/pdf",
-                    )
-                except Exception as e:
-                    st.error(f"Internal PDF generation failed: {e}")
-
-        if run_external:
-            report = ws.run_external()
-            st.subheader("External Report")
-            render_report_ui(report)
-
-            if render_external_pdf is not None:
-                try:
-                    external_pdf = render_external_pdf(ws, branding=branding)
-                    st.download_button(
-                        label="Download External PDF",
-                        data=external_pdf,
-                        file_name=f"{ws.name}_external_report.pdf",
-                        mime="application/pdf",
-                    )
-                except Exception as e:
-                    st.error(f"External PDF generation failed: {e}")
-
-        if run_both:
-            internal_report, external_report = ws.run_both()
-
-            st.subheader("Internal Report")
-            render_report_ui(internal_report)
-
-            if render_internal_pdf is not None:
-                try:
-                    internal_pdf = render_internal_pdf(ws, branding=branding)
-                    st.download_button(
-                        label="Download Internal PDF",
-                        data=internal_pdf,
-                        file_name=f"{ws.name}_internal_report.pdf",
-                        mime="application/pdf",
-                    )
-                except Exception as e:
-                    st.error(f"Internal PDF generation failed: {e}")
-
-            st.subheader("External Report")
-            render_report_ui(external_report)
-
-            if render_external_pdf is not None:
-                try:
-                    external_pdf = render_external_pdf(ws, branding=branding)
-                    st.download_button(
-                        label="Download External PDF",
-                        data=external_pdf,
-                        file_name=f"{ws.name}_external_report.pdf",
-                        mime="application/pdf",
-                    )
-                except Exception as e:
-                    st.error(f"External PDF generation failed: {e}")
 
 footer()
