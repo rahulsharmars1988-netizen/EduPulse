@@ -3,37 +3,29 @@ PDF renderer.
 
 Consumes a `Report` (list of policy-filtered `ReportBlock` objects) plus
 optional `BrandingSettings` and emits a professional PDF.
-
-Internal reports render with full detail — tables, labeled bullets,
-callout strips, traceability. External reports render with a cleaner,
-higher-level aesthetic — fewer tables, more prose, and a strategic cover
-band. The mode switch happens inside this renderer so that the policy
-layer's filtering drives the page.
 """
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Optional, List
+from typing import Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     Image as RLImage, Flowable,
 )
 
-from config import APP_NAME, APP_TAGLINE, LOGIC_VERSION
+from config import APP_NAME, LOGIC_VERSION
 from report_policy import Report, ReportBlock, MODE_INTERNAL, MODE_EXTERNAL
 from branding import BrandingSettings
 
 # Palette
 INK = colors.HexColor("#0F172A")
 ACCENT = colors.HexColor("#1E3A8A")
-ACCENT_DARK = colors.HexColor("#0B1F5C")
-SOFT = colors.HexColor("#E0E7FF")
 MUTED = colors.HexColor("#64748B")
 LINE = colors.HexColor("#CBD5E1")
 CALLOUT_BG = colors.HexColor("#F1F5F9")
@@ -58,7 +50,6 @@ class HRule(Flowable):
 
 
 class ColoredBand(Flowable):
-    """Solid coloured band used for cover headers in external reports."""
     def __init__(self, width, height=28 * mm, color=ACCENT, title="", subtitle=""):
         super().__init__()
         self.width, self.height, self.color = width, height, color
@@ -85,42 +76,99 @@ class ColoredBand(Flowable):
 def _styles():
     ss = getSampleStyleSheet()
     return {
-        "title":    ParagraphStyle("t", parent=ss["Title"], textColor=ACCENT, alignment=TA_LEFT,
-                                   fontSize=22, leading=26, spaceAfter=4),
-        "subtitle": ParagraphStyle("s", parent=ss["Normal"], textColor=MUTED, fontSize=10,
-                                   leading=13, spaceAfter=12),
-        "h2":       ParagraphStyle("h2", parent=ss["Heading2"], textColor=ACCENT, fontSize=14,
-                                   leading=18, spaceBefore=12, spaceAfter=6),
-        "h3":       ParagraphStyle("h3", parent=ss["Heading3"], textColor=INK, fontSize=11,
-                                   leading=15, spaceBefore=6, spaceAfter=3),
-        "body":     ParagraphStyle("b", parent=ss["Normal"], textColor=INK, fontSize=10,
-                                   leading=14, spaceAfter=4),
-        "lead":     ParagraphStyle("ld", parent=ss["Normal"], textColor=INK, fontSize=11,
-                                   leading=15.5, spaceAfter=6),
-        "bullet":   ParagraphStyle("bu", parent=ss["Normal"], textColor=INK, fontSize=10,
-                                   leading=14, leftIndent=12, bulletIndent=2, spaceAfter=2),
-        "labeled":  ParagraphStyle("lb", parent=ss["Normal"], textColor=INK, fontSize=10,
-                                   leading=14, leftIndent=0, spaceAfter=2),
-        "small":    ParagraphStyle("sm", parent=ss["Normal"], textColor=MUTED, fontSize=8.5,
-                                   leading=11),
-        "callout":  ParagraphStyle("co", parent=ss["Normal"], textColor=INK, fontSize=10,
-                                   leading=14, leftIndent=8, spaceAfter=2),
-        "sig_name": ParagraphStyle("sn", parent=ss["Normal"], textColor=INK, fontSize=11,
-                                   leading=14, spaceAfter=0, fontName="Helvetica-Bold"),
-        "sig_desig": ParagraphStyle("sd", parent=ss["Normal"], textColor=MUTED, fontSize=9,
-                                    leading=12, spaceAfter=0),
+        "title": ParagraphStyle(
+            "t", parent=ss["Title"], textColor=ACCENT, alignment=TA_LEFT,
+            fontSize=22, leading=26, spaceAfter=4
+        ),
+        "subtitle": ParagraphStyle(
+            "s", parent=ss["Normal"], textColor=MUTED, fontSize=10,
+            leading=13, spaceAfter=12
+        ),
+        "h2": ParagraphStyle(
+            "h2", parent=ss["Heading2"], textColor=ACCENT, fontSize=14,
+            leading=18, spaceBefore=12, spaceAfter=6
+        ),
+        "h3": ParagraphStyle(
+            "h3", parent=ss["Heading3"], textColor=INK, fontSize=11,
+            leading=15, spaceBefore=6, spaceAfter=3
+        ),
+        "body": ParagraphStyle(
+            "b", parent=ss["Normal"], textColor=INK, fontSize=10,
+            leading=14, spaceAfter=4
+        ),
+        "lead": ParagraphStyle(
+            "ld", parent=ss["Normal"], textColor=INK, fontSize=11,
+            leading=15.5, spaceAfter=6
+        ),
+        "bullet": ParagraphStyle(
+            "bu", parent=ss["Normal"], textColor=INK, fontSize=10,
+            leading=14, leftIndent=12, bulletIndent=2, spaceAfter=2
+        ),
+        "small": ParagraphStyle(
+            "sm", parent=ss["Normal"], textColor=MUTED, fontSize=8.5,
+            leading=11
+        ),
+        "callout": ParagraphStyle(
+            "co", parent=ss["Normal"], textColor=INK, fontSize=10,
+            leading=14, leftIndent=8, spaceAfter=2
+        ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Page footer on every page
+# ---------------------------------------------------------------------------
+def _page_footer(canvas, doc, branding: Optional[BrandingSettings]):
+    canvas.saveState()
+    footer_y = 10 * mm
+    left_x = doc.leftMargin
+    right_x = doc.pagesize[0] - doc.rightMargin
+
+    canvas.setStrokeColor(LINE)
+    canvas.setLineWidth(0.4)
+    canvas.line(doc.leftMargin, footer_y + 8, doc.pagesize[0] - doc.rightMargin, footer_y + 8)
+
+    line1 = "Rahul Sharma | Manager – IQAC, DBS Global University | Architect – Beyond Higher Education Systems"
+    line2 = "rahulsharma.rs1988@gmail.com | https://www.linkedin.com/in/rahul-sharma-7b119a33/"
+
+    if branding:
+        name = (branding.authorized_signature_name or "").strip()
+        desig = (branding.designation or "").strip()
+        inst = (branding.institution_name or "").strip()
+        owner = (branding.copyright_owner_name or "").strip()
+
+        parts = []
+        if name:
+            parts.append(name)
+        if desig or inst:
+            parts.append(", ".join([p for p in [desig, inst] if p]))
+        if owner:
+            parts.append("Architect – Beyond Higher Education Systems")
+
+        if parts:
+            line1 = " | ".join(parts)
+
+    canvas.setFont("Helvetica", 7.8)
+    canvas.setFillColor(MUTED)
+    canvas.drawString(left_x, footer_y + 2, line1[:140])
+
+    canvas.setFont("Helvetica", 7.4)
+    canvas.drawString(left_x, footer_y - 6, line2[:140])
+
+    canvas.setFont("Helvetica", 7.5)
+    canvas.drawRightString(right_x, footer_y - 6, f"Page {canvas.getPageNumber()}")
+
+    canvas.restoreState()
 
 
 # ---------------------------------------------------------------------------
 # Render helpers
 # ---------------------------------------------------------------------------
 def _header_row(content_width: float, pairs):
-    """Banner row of (label, value) cells."""
     lstyle = ParagraphStyle("hl", textColor=colors.white, fontSize=8.5,
-                             alignment=TA_CENTER, leading=10)
+                            alignment=TA_CENTER, leading=10)
     vstyle = ParagraphStyle("hv", textColor=colors.white, fontSize=13,
-                             alignment=TA_CENTER, leading=15, fontName="Helvetica-Bold")
+                            alignment=TA_CENTER, leading=15, fontName="Helvetica-Bold")
     labels = [Paragraph(l, lstyle) for l, _ in pairs]
     values = [Paragraph(str(v), vstyle) for _, v in pairs]
     n = len(pairs)
@@ -142,26 +190,47 @@ def _header_row(content_width: float, pairs):
 def _data_table(table, content_width, max_rows=14):
     cols = table.columns
     n = len(cols)
-    if n > 1 and cols[0] in {"Programme Name", "Department", "Dimension",
-                              "Horizon", "Category"}:
-        first = content_width * 0.30
-        rest = (content_width - first) / (n - 1)
-        widths = [first] + [rest] * (n - 1)
+
+    if n == 2:
+        widths = [content_width * 0.30, content_width * 0.70]
+    elif n == 3:
+        widths = [content_width * 0.22, content_width * 0.18, content_width * 0.60]
+    elif n == 4:
+        widths = [content_width * 0.18, content_width * 0.18, content_width * 0.18, content_width * 0.46]
+    elif n == 5:
+        widths = [content_width * 0.16, content_width * 0.12, content_width * 0.18, content_width * 0.27, content_width * 0.27]
+    elif n == 6:
+        widths = [content_width * 0.16, content_width * 0.20, content_width * 0.12, content_width * 0.14, content_width * 0.18, content_width * 0.20]
     else:
         widths = [content_width / n] * n
-    data = [cols] + table.rows[:max_rows]
+
+    wrapped_rows = []
+    for row in table.rows[:max_rows]:
+        wrapped_row = []
+        for cell in row:
+            wrapped_row.append(Paragraph(str(cell), ParagraphStyle(
+                "tbl", fontSize=8.2, leading=10, textColor=INK
+            )))
+        wrapped_rows.append(wrapped_row)
+
+    header = [Paragraph(str(c), ParagraphStyle(
+        "th", fontSize=8.5, leading=10, textColor=colors.white, alignment=TA_CENTER
+    )) for c in cols]
+
+    data = [header] + wrapped_rows
+
     t = Table(data, colWidths=widths, repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), ACCENT),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
         ("GRID", (0, 0), (-1, -1), 0.25, LINE),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
     return t
 
@@ -204,63 +273,10 @@ def _render_block(block: ReportBlock, content_width: float, styles, mode: str) -
         out.append(Spacer(1, 4))
         out.append(Paragraph(f"<b>{tbl.title}</b>", styles["h3"]))
         out.append(_data_table(tbl, content_width))
+        out.append(Spacer(1, 4))
     out.append(Spacer(1, 6))
     out.append(HRule(content_width))
     out.append(Spacer(1, 4))
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Signature block
-# ---------------------------------------------------------------------------
-def _signature_block(branding: BrandingSettings, content_width: float, styles) -> list:
-    out = []
-    if not branding:
-        return out
-
-    name = branding.authorized_signature_name.strip() if branding else ""
-    desig = branding.designation.strip() if branding else ""
-    inst = branding.institution_name.strip() if branding else ""
-    owner = branding.copyright_owner_name.strip() if branding else ""
-
-    if not any([name, desig, inst, owner, branding.has_signature_image()]):
-        return out
-
-    sig_image = None
-    if branding.has_signature_image():
-        try:
-            sig_image = RLImage(BytesIO(branding.signature_image_bytes),
-                                width=45 * mm, height=18 * mm, kind='proportional')
-        except Exception:
-            sig_image = None
-
-    right_stack = []
-    if sig_image is not None:
-        right_stack.append(sig_image)
-    elif name:
-        right_stack.append(Paragraph(f"<i>/ {name} /</i>", styles["sig_name"]))
-    if name:
-        right_stack.append(Paragraph(name, styles["sig_name"]))
-    if desig:
-        right_stack.append(Paragraph(desig, styles["sig_desig"]))
-    if inst:
-        right_stack.append(Paragraph(inst, styles["sig_desig"]))
-    if owner:
-        right_stack.append(Paragraph(f"© {owner}", styles["sig_desig"]))
-
-    left_cell = [Paragraph(branding.footer_note, styles["small"])] if branding.footer_note else [Paragraph(" ", styles["small"])]
-    right_cell = right_stack or [Paragraph(" ", styles["small"])]
-    t = Table([[left_cell, right_cell]],
-              colWidths=[content_width * 0.55, content_width * 0.45])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("LINEABOVE", (0, 0), (-1, 0), 0.4, LINE),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    out.append(Spacer(1, 10))
-    out.append(t)
     return out
 
 
@@ -269,12 +285,14 @@ def _signature_block(branding: BrandingSettings, content_width: float, styles) -
 # ---------------------------------------------------------------------------
 def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
                scored_summary: Optional[dict] = None) -> bytes:
-    """Render the given report to PDF bytes."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=18 * mm, bottomMargin=16 * mm,
+        buf,
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=22 * mm,
         title=f"{APP_NAME} {report.mode.title()} Report — {report.case_name}",
     )
     styles = _styles()
@@ -282,7 +300,7 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
     flow = []
 
     is_external = report.mode == MODE_EXTERNAL
-    inst = branding.institution_name if branding and branding.institution_name else ""
+    inst = branding.institution_name if branding and getattr(branding, "institution_name", None) else ""
 
     if is_external:
         flow.append(ColoredBand(
@@ -315,6 +333,7 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
         score = scored_summary.get("score")
         conf = scored_summary.get("confidence", "—")
         cov = scored_summary.get("coverage_pct")
+
         if is_external:
             pairs = [
                 ("Overall Position", str(state)),
@@ -333,8 +352,6 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
     for block in report.blocks:
         flow.extend(_render_block(block, content_width, styles, report.mode))
 
-    flow.extend(_signature_block(branding, content_width, styles))
-
     flow.append(Spacer(1, 6))
     flow.append(Paragraph(
         "This report is produced by the EduPulse Institutional Health Diagnostics Engine — "
@@ -342,12 +359,15 @@ def render_pdf(report: Report, branding: Optional[BrandingSettings] = None,
         styles["small"],
     ))
 
-    doc.build(flow)
+    doc.build(
+        flow,
+        onFirstPage=lambda canvas, doc: _page_footer(canvas, doc, branding),
+        onLaterPages=lambda canvas, doc: _page_footer(canvas, doc, branding),
+    )
     return buf.getvalue()
 
 
 def render_internal_pdf(case, branding: Optional[BrandingSettings] = None) -> bytes:
-    """Convenience: use or lazily build the internal report."""
     if not case.has_internal():
         case.run_internal()
     if case.internal_pdf_bytes:
